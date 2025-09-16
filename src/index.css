@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* TacktixEdge Gaming Platform Design System
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Core Gaming Theme - Dark Navy Base */
+    --background: 215 28% 7%;
+    --foreground: 210 40% 98%;
+
+    /* Glass Cards */
+    --card: 215 28% 9%;
+    --card-foreground: 210 40% 98%;
+
+    /* Popover/Tooltips */
+    --popover: 215 28% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    /* TacktixEdge Blue - Primary Brand */
+    --primary: 213 94% 68%;
+    --primary-foreground: 215 28% 7%;
+    --primary-glow: 213 94% 78%;
+
+    /* Gaming Accent Colors */
+    --secondary: 215 25% 15%;
+    --secondary-foreground: 210 40% 98%;
+
+    /* Muted Elements */
+    --muted: 215 25% 12%;
+    --muted-foreground: 215 20% 65%;
+
+    /* Electric Accent */
+    --accent: 283 89% 74%;
+    --accent-foreground: 215 28% 7%;
+
+    /* Danger/Loss States */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Success/Win States */
+    --success: 142 76% 36%;
+    --success-foreground: 210 40% 98%;
+
+    /* Borders & Inputs */
+    --border: 215 25% 18%;
+    --input: 215 25% 15%;
+    --ring: 213 94% 68%;
+
+    /* Gaming Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(213 94% 68%), hsl(283 89% 74%));
+    --gradient-hero: linear-gradient(135deg, hsl(213 94% 68%) 0%, hsl(243 75% 59%) 35%, hsl(283 89% 74%) 100%);
+    --gradient-glass: linear-gradient(135deg, hsl(215 28% 9% / 0.7), hsl(215 25% 15% / 0.3));
+    
+    /* Glowing Effects */
+    --glow-primary: 0 0 20px hsl(213 94% 68% / 0.5);
+    --glow-accent: 0 0 30px hsl(283 89% 74% / 0.4);
+    --glow-success: 0 0 20px hsl(142 76% 36% / 0.6);
+
+    /* Gaming Shadows */
+    --shadow-glass: 0 8px 32px hsl(215 28% 7% / 0.6);
+    --shadow-glow: 0 0 40px hsl(213 94% 68% / 0.3);
+    --shadow-card: 0 4px 20px hsl(215 28% 7% / 0.4);
+
+    /* Animations & Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background-attachment: fixed;
+    background-image: 
+      radial-gradient(circle at 20% 80%, hsl(213 94% 68% / 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, hsl(283 89% 74% / 0.1) 0%, transparent 50%);
+  }
+
+  /* Glassmorphism Base Classes */
+  .glass {
+    background: var(--gradient-glass);
+    backdrop-filter: blur(20px);
+    border: 1px solid hsl(var(--border));
+    box-shadow: var(--shadow-glass);
+  }
+
+  .glass-card {
+    @apply glass rounded-xl p-6;
+  }
+
+  .glass-button {
+    @apply glass rounded-lg px-4 py-2 transition-all duration-300;
+    backdrop-filter: blur(16px);
+  }
+
+  /* Glow Effects */
+  .glow-primary {
+    box-shadow: var(--glow-primary);
+  }
+
+  .glow-accent {
+    box-shadow: var(--glow-accent);
+  }
+
+  .glow-success {
+    box-shadow: var(--glow-success);
+  }
+
+  /* Hero Gradient Background */
+  .hero-bg {
+    background: var(--gradient-hero);
+    background-size: 400% 400%;
+    animation: gradient-flow 8s ease infinite;
+  }
+
+  @keyframes gradient-flow {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  /* Animated Underlines */
+  .link-glow {
+    @apply relative inline-block;
+  }
+
+  .link-glow::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-full h-0.5 bg-primary scale-x-0 origin-bottom-right;
+    transition: transform 0.3s ease-out;
+  }
+
+  .link-glow:hover::after {
+    @apply scale-x-100 origin-bottom-left;
+    box-shadow: var(--glow-primary);
+  }
+
+  /* Gaming Card Hover Effects */
+  .game-card {
+    @apply glass-card transition-all duration-300;
+    transform-style: preserve-3d;
+  }
+
+  .game-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: var(--shadow-glow), var(--shadow-glass);
+  }
+
+  /* Floating Animation */
+  .float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+
+  /* Pulse Glow */
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes pulse-glow {
+    from { box-shadow: var(--glow-primary); }
+    to { 
+      box-shadow: 
+        var(--glow-primary),
+        0 0 40px hsl(213 94% 68% / 0.8),
+        0 0 60px hsl(213 94% 68% / 0.4);
+    }
+  }
+
+  /* Marquee Animation */
+  .animate-marquee {
+    animation: marquee 20s linear infinite;
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+  }
+
+  /* Line Clamp Utility */
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
