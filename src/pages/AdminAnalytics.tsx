@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AdminSidebar from "@/components/AdminSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,9 +6,86 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, TrendingDown, Users, Gamepad2, Trophy, Wallet, Download } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminAnalytics = () => {
   const navigate = useNavigate();
+  const [metrics, setMetrics] = useState({
+    activeUsers: 0,
+    matchesToday: 0,
+    revenue: 0,
+    activeTournaments: 0
+  });
+  const [gameBreakdown, setGameBreakdown] = useState<{ name: string; percent: number }[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        // Active users (last 24h appearing in matches)
+        const since = new Date();
+        since.setDate(since.getDate() - 1);
+        const { data: recent } = await supabase
+          .from('matches')
+          .select('creator_id, opponent_id, created_at')
+          .gte('created_at', since.toISOString());
+        const activeSet = new Set<string>();
+        (recent || []).forEach((m: any) => {
+          if (m.creator_id) activeSet.add(m.creator_id);
+          if (m.opponent_id) activeSet.add(m.opponent_id);
+        });
+
+        // Matches today
+        const todayStr = new Date().toISOString().split('T')[0];
+        const { count: matchesToday } = await supabase
+          .from('matches')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', `${todayStr}T00:00:00.000Z`);
+
+        // Revenue (sum platform_fees)
+        const { data: feesRows } = await supabase
+          .from('platform_fees')
+          .select('fee_amount');
+        const revenue = (feesRows || []).reduce((s: number, r: any) => s + (r.fee_amount || 0), 0);
+
+        // Active tournaments
+        const { count: activeTournaments } = await supabase
+          .from('tournaments')
+          .select('*', { count: 'exact', head: true })
+          .neq('status', 'completed');
+
+        setMetrics({
+          activeUsers: activeSet.size,
+          matchesToday: matchesToday || 0,
+          revenue,
+          activeTournaments: activeTournaments || 0
+        });
+
+        // Game popularity breakdown (last 30 days matches by game)
+        const since30 = new Date();
+        since30.setDate(since30.getDate() - 30);
+        const { data: matches30 } = await supabase
+          .from('matches')
+          .select('game_id, games(name)')
+          .gte('created_at', since30.toISOString());
+        const byGame = new Map<string, { name: string; count: number }>();
+        (matches30 || []).forEach((m: any) => {
+          const name = m.games?.name || 'Unknown';
+          const v = byGame.get(m.game_id) || { name, count: 0 };
+          v.count += 1;
+          byGame.set(m.game_id, v);
+        });
+        const total = Array.from(byGame.values()).reduce((s, v) => s + v.count, 0) || 1;
+        const breakdown = Array.from(byGame.values())
+          .map(v => ({ name: v.name, percent: Math.round((v.count / total) * 100) }))
+          .sort((a, b) => b.percent - a.percent)
+          .slice(0, 6);
+        setGameBreakdown(breakdown);
+      } catch (e: any) {
+        toast.error(e.message || 'Failed to load analytics');
+      }
+    };
+    load();
+  }, []);
 
   const handleExportReport = () => {
     toast.success("Analytics report exported successfully");
@@ -39,7 +117,7 @@ const AdminAnalytics = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">1,234</div>
+                <div className="text-2xl font-bold">{metrics.activeUsers.toLocaleString()}</div>
                 <div className="flex items-center text-sm">
                   <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
                   <span className="text-green-600">+12.5%</span>
@@ -56,7 +134,7 @@ const AdminAnalytics = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">89</div>
+                <div className="text-2xl font-bold">{metrics.matchesToday.toLocaleString()}</div>
                 <div className="flex items-center text-sm">
                   <TrendingDown className="h-4 w-4 text-red-600 mr-1" />
                   <span className="text-red-600">-3.2%</span>
@@ -73,7 +151,7 @@ const AdminAnalytics = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₦45.6k</div>
+                <div className="text-2xl font-bold">₦{metrics.revenue.toLocaleString()}</div>
                 <div className="flex items-center text-sm">
                   <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
                   <span className="text-green-600">+8.7%</span>
@@ -90,7 +168,7 @@ const AdminAnalytics = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">3</div>
+                <div className="text-2xl font-bold">{metrics.activeTournaments}</div>
                 <div className="text-sm text-muted-foreground">
                   Active tournaments
                 </div>
@@ -142,42 +220,20 @@ const AdminAnalytics = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span>Call of Duty Mobile</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-32 bg-muted rounded-full h-2">
-                          <div className="bg-primary h-2 rounded-full" style={{ width: '65%' }}></div>
+                    {gameBreakdown.map((g) => (
+                      <div key={g.name} className="flex items-center justify-between">
+                        <span>{g.name}</span>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-32 bg-muted rounded-full h-2">
+                            <div className="bg-primary h-2 rounded-full" style={{ width: `${g.percent}%` }}></div>
+                          </div>
+                          <span className="text-sm text-muted-foreground">{g.percent}%</span>
                         </div>
-                        <span className="text-sm text-muted-foreground">65%</span>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>PUBG Mobile</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-32 bg-muted rounded-full h-2">
-                          <div className="bg-primary h-2 rounded-full" style={{ width: '45%' }}></div>
-                        </div>
-                        <span className="text-sm text-muted-foreground">45%</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Free Fire</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-32 bg-muted rounded-full h-2">
-                          <div className="bg-primary h-2 rounded-full" style={{ width: '35%' }}></div>
-                        </div>
-                        <span className="text-sm text-muted-foreground">35%</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>EA FC Mobile</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-32 bg-muted rounded-full h-2">
-                          <div className="bg-primary h-2 rounded-full" style={{ width: '25%' }}></div>
-                        </div>
-                        <span className="text-sm text-muted-foreground">25%</span>
-                      </div>
-                    </div>
+                    ))}
+                    {gameBreakdown.length === 0 && (
+                      <p className="text-muted-foreground text-sm">No data available</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>

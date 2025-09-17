@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,108 +10,61 @@ import {
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import Footer from "@/components/Footer";
+import { supabase } from "@/integrations/supabase/client";
 
 const Tournaments = () => {
   const [gameFilter, setGameFilter] = useState("all");
+  const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const upcomingTournaments = [
-    {
-      id: "ff-championship-2024",
-      name: "Free Fire Championship 2024",
-      game: "Free Fire",
-      prizePool: "₦100,000",
-      entryFee: "₦2,000",
-      participants: 48,
-      maxParticipants: 64,
-      startDate: "2024-12-20",
-      startTime: "18:00",
-      format: "Battle Royale Knockout",
-      status: "registration",
-      featured: true,
-      description: "Nigeria's biggest Free Fire tournament with massive prize pool and professional casting."
-    },
-    {
-      id: "codm-winter-masters",
-      name: "CODM Winter Masters",
-      game: "CODM",
-      prizePool: "₦75,000",
-      entryFee: "₦1,500",
-      participants: 32,
-      maxParticipants: 32,
-      startDate: "2024-12-18",
-      startTime: "20:00",
-      format: "5v5 Team Elimination",
-      status: "full",
-      featured: false,
-      description: "Elite CODM teams battle for winter supremacy in this high-stakes tournament."
-    },
-    {
-      id: "pubg-squad-showdown",
-      name: "PUBG Squad Showdown",
-      game: "PUBG",
-      prizePool: "₦50,000",
-      entryFee: "₦1,000",
-      participants: 24,
-      maxParticipants: 40,
-      startDate: "2024-12-22",
-      startTime: "19:00",
-      format: "Squad Battle Royale",
-      status: "registration",
-      featured: false,
-      description: "Squad-based PUBG tournament with strategic gameplay and team coordination focus."
-    },
-    {
-      id: "pes-new-year-cup",
-      name: "PES New Year Cup",
-      game: "PES",
-      prizePool: "₦30,000",
-      entryFee: "₦800",
-      participants: 16,
-      maxParticipants: 32,
-      startDate: "2024-12-31",
-      startTime: "16:00",
-      format: "1v1 Knockout",
-      status: "registration",
-      featured: false,
-      description: "Ring in the new year with competitive PES action and football supremacy."
-    }
-  ];
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('tournaments')
+          .select('*, games(name, short_name)')
+          .order('start_date', { ascending: true });
+        if (error) throw error;
 
-  const liveTournaments = [
-    {
-      id: "ea-fc-weekend-league",
-      name: "EA FC Weekend League",
-      game: "EA FC",
-      prizePool: "₦40,000",
-      participants: 32,
-      currentRound: "Quarter Finals",
-      timeRemaining: "2h 15m",
-      status: "live"
-    }
-  ];
+        const withCounts = await Promise.all((data || []).map(async (t: any) => {
+          let participants = t.current_participants;
+          if (participants == null) {
+            const { count } = await supabase
+              .from('tournament_participants')
+              .select('*', { count: 'exact', head: true })
+              .eq('tournament_id', t.id);
+            participants = count || 0;
+          }
+          return {
+            id: t.id,
+            name: t.name,
+            game: t.games?.short_name || t.games?.name || 'Unknown',
+            prizePool: Number(t.prize_pool) || 0,
+            entryFee: Number(t.entry_fee) || 0,
+            participants,
+            maxParticipants: t.max_participants || 0,
+            startDate: t.start_date,
+            startTime: t.start_date ? new Date(t.start_date).toLocaleTimeString() : '',
+            format: t.format,
+            status: t.status,
+            featured: !!t.is_featured,
+            description: t.description || ''
+          };
+        }));
 
-  const completedTournaments = [
-    {
-      id: "codm-november-championship",
-      name: "CODM November Championship",
-      game: "CODM",
-      prizePool: "₦80,000",
-      winner: "Lagos Warriors",
-      winnerPrize: "₦40,000",
-      participants: 64,
-      completedDate: "2024-11-30"
-    },
-    {
-      id: "ff-halloween-special",
-      name: "Free Fire Halloween Special",
-      game: "Free Fire",
-      prizePool: "₦60,000",
-      winner: "GhostRiders",
-      winnerPrize: "₦30,000",
-      participants: 48,
-      completedDate: "2024-10-31"
-    }
-  ];
+        setList(withCounts);
+      } catch (e) {
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const upcomingTournaments = useMemo(() => list.filter(t => t.status !== 'completed'), [list]);
+  const liveTournaments = useMemo(() => list.filter(t => ['live','in_progress'].includes(t.status)), [list]);
+  const completedTournaments = useMemo(() => list.filter(t => t.status === 'completed'), [list]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -171,7 +124,7 @@ const Tournaments = () => {
                       </Badge>
                       <h2 className="text-3xl font-bold mb-2">{tournament.name}</h2>
                       <p className="text-xl text-foreground/80 mb-4">
-                        {tournament.prizePool} Prize Pool • {tournament.format} • {tournament.game}
+                        ₦{Number(tournament.prizePool).toLocaleString()} Prize Pool • {tournament.format} • {tournament.game}
                       </p>
                       <div className="flex flex-wrap gap-4 text-sm">
                         <div className="flex items-center">
@@ -180,11 +133,11 @@ const Tournaments = () => {
                         </div>
                         <div className="flex items-center">
                           <Coins className="h-4 w-4 mr-2 text-accent" />
-                          Entry: {tournament.entryFee}
+                          Entry: ₦{Number(tournament.entryFee).toLocaleString()}
                         </div>
                         <div className="flex items-center">
                           <Calendar className="h-4 w-4 mr-2 text-success" />
-                          {tournament.startDate} at {tournament.startTime}
+                          {tournament.startDate ? new Date(tournament.startDate).toLocaleDateString() : ''} {tournament.startTime}
                         </div>
                       </div>
                     </div>
@@ -252,7 +205,7 @@ const Tournaments = () => {
                         {/* Prize Pool */}
                         <div className="text-center mb-4 p-3 glass rounded-lg">
                           <div className="text-2xl font-bold text-primary mb-1">
-                            {tournament.prizePool}
+                            ₦{Number(tournament.prizePool).toLocaleString()}
                           </div>
                           <div className="text-sm text-foreground/70">Prize Pool</div>
                         </div>
@@ -261,7 +214,7 @@ const Tournaments = () => {
                         <div className="space-y-2 mb-4">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-foreground/70">Entry Fee:</span>
-                            <span className="font-semibold text-accent">{tournament.entryFee}</span>
+                            <span className="font-semibold text-accent">₦{Number(tournament.entryFee).toLocaleString()}</span>
                           </div>
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-foreground/70">Format:</span>
@@ -276,7 +229,7 @@ const Tournaments = () => {
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-foreground/70">Start:</span>
                             <span className="font-semibold text-primary">
-                              {tournament.startDate} {tournament.startTime}
+                              {tournament.startDate ? new Date(tournament.startDate).toLocaleDateString() : ''} {tournament.startTime}
                             </span>
                           </div>
                         </div>

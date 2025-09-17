@@ -22,6 +22,7 @@ import DashboardMatches from "./pages/DashboardMatches";
 import CreateChallenge from "./pages/CreateChallenge";
 import DashboardProfile from "./pages/DashboardProfile";
 import DashboardTournaments from "./pages/DashboardTournaments";
+import MatchDetail from "./pages/MatchDetail";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminUsers from "./pages/AdminUsers";
 import AdminWallet from "./pages/AdminWallet";
@@ -30,6 +31,9 @@ import AdminTournaments from "./pages/AdminTournaments";
 import AdminAnalytics from "./pages/AdminAnalytics";
 import AdminNotifications from "./pages/AdminNotifications";
 import AdminSettings from "./pages/AdminSettings";
+import AdminTournamentCreate from "./pages/AdminTournamentCreate";
+import AdminTournamentDetail from "./pages/AdminTournamentDetail";
+import AdminTournamentManage from "./pages/AdminTournamentManage";
 
 const queryClient = new QueryClient();
 
@@ -39,7 +43,13 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <BrowserRouter>
+        <BrowserRouter 
+          basename={import.meta.env.PROD ? "/tacktixuniverse" : ""}
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true
+          }}
+        >
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/games" element={<Games />} />
@@ -79,6 +89,11 @@ const App = () => (
                 <CreateChallenge />
               </ProtectedRoute>
             } />
+            <Route path="/matches/:matchId" element={
+              <ProtectedRoute>
+                <MatchDetail />
+              </ProtectedRoute>
+            } />
             
             {/* Admin Routes */}
             <Route path="/admin" element={
@@ -104,6 +119,21 @@ const App = () => (
             <Route path="/admin/tournaments" element={
               <ProtectedRoute requireAdmin>
                 <AdminTournaments />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/tournaments/create" element={
+              <ProtectedRoute requireAdmin>
+                <AdminTournamentCreate />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/tournaments/:tournamentId" element={
+              <ProtectedRoute requireAdmin>
+                <AdminTournamentDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/tournaments/:tournamentId/manage" element={
+              <ProtectedRoute requireAdmin>
+                <AdminTournamentManage />
               </ProtectedRoute>
             } />
             <Route path="/admin/analytics" element={

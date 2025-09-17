@@ -76,7 +76,8 @@ const GameDetail = () => {
           .from('matches')
           .select('*', { count: 'exact', head: true })
           .eq('game_id', gameByName.id)
-          .in('status', ['awaiting_opponent', 'in_progress']);
+          .eq('status', 'awaiting_opponent')
+          .is('opponent_id', null);
         
         // Fetch online players count
         const { count: onlinePlayers } = await supabase
@@ -114,7 +115,8 @@ const GameDetail = () => {
         .from('matches')
         .select('*', { count: 'exact', head: true })
         .eq('game_id', game.id)
-        .in('status', ['awaiting_opponent', 'in_progress']);
+        .eq('status', 'awaiting_opponent')
+        .is('opponent_id', null);
         
       // Fetch online players count
       const { count: onlinePlayers } = await supabase

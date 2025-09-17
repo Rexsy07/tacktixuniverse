@@ -4,7 +4,7 @@ import path from "path"
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: "/tacktixuniverse/", // ✅ repo name for GitHub Pages
+  base: mode === "production" ? "/tacktixuniverse/" : "/", // ✅ repo name for GitHub Pages
   server: {
     host: mode === "production" ? "localhost" : "::",
     port: 8080,

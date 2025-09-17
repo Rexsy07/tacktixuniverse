@@ -23,6 +23,10 @@ const AdminUsers = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const { users, loading } = useAdminUsers();
+  const totalUsers = users.length;
+  const activeCount = users.filter(u => u.status === 'active').length;
+  const pendingCount = users.filter(u => u.status === 'pending').length;
+  const suspendedCount = users.filter(u => u.status === 'suspended').length;
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -73,25 +77,25 @@ const AdminUsers = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="glass-card">
             <div className="p-4 text-center">
-              <div className="text-2xl font-bold">1,250</div>
+              <div className="text-2xl font-bold">{totalUsers.toLocaleString()}</div>
               <div className="text-sm text-foreground/70">Total Users</div>
             </div>
           </Card>
           <Card className="glass-card">
             <div className="p-4 text-center">
-              <div className="text-2xl font-bold text-success">1,185</div>
+              <div className="text-2xl font-bold text-success">{activeCount.toLocaleString()}</div>
               <div className="text-sm text-foreground/70">Active</div>
             </div>
           </Card>
           <Card className="glass-card">
             <div className="p-4 text-center">
-              <div className="text-2xl font-bold text-warning">45</div>
+              <div className="text-2xl font-bold text-warning">{pendingCount.toLocaleString()}</div>
               <div className="text-sm text-foreground/70">Pending</div>
             </div>
           </Card>
           <Card className="glass-card">
             <div className="p-4 text-center">
-              <div className="text-2xl font-bold text-destructive">20</div>
+              <div className="text-2xl font-bold text-destructive">{suspendedCount.toLocaleString()}</div>
               <div className="text-sm text-foreground/70">Suspended</div>
             </div>
           </Card>

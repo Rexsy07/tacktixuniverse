@@ -52,7 +52,7 @@ const AdminMatches = () => {
                 <CardTitle className="text-sm font-medium">Active Matches</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">23</div>
+                <div className="text-2xl font-bold text-green-600">{matches.filter(m => ['awaiting_opponent','in_progress','active'].includes(m.status)).length}</div>
               </CardContent>
             </Card>
             <Card>
@@ -60,7 +60,7 @@ const AdminMatches = () => {
                 <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">45</div>
+                <div className="text-2xl font-bold text-blue-600">{matches.filter(m => m.status === 'completed' && new Date(m.created_at).toDateString() === new Date().toDateString()).length}</div>
               </CardContent>
             </Card>
             <Card>
@@ -68,7 +68,7 @@ const AdminMatches = () => {
                 <CardTitle className="text-sm font-medium">Disputed</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">3</div>
+                <div className="text-2xl font-bold text-red-600">{matches.filter(m => m.status === 'disputed').length}</div>
               </CardContent>
             </Card>
             <Card>
@@ -76,7 +76,7 @@ const AdminMatches = () => {
                 <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₦125k</div>
+                <div className="text-2xl font-bold">₦{matches.reduce((s, m) => s + (m.stake_amount || 0), 0).toLocaleString()}</div>
               </CardContent>
             </Card>
           </div>
@@ -125,7 +125,7 @@ const AdminMatches = () => {
                       <Button 
                         size="sm" 
                         variant="outline"
-                        onClick={() => navigate(`/admin/matches/${match.id}`)}
+                        onClick={() => navigate(`/matches/${match.id}`)}
                       >
                         View
                       </Button>

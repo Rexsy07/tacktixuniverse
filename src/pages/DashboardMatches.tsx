@@ -7,15 +7,16 @@ import {
   Plus, Target, Clock, Trophy, Users, 
   Filter, Search, Eye, Upload 
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useMatches, useOpenChallenges } from "@/hooks/useMatches";
 import { useAuth } from "@/hooks/useAuth";
 
 const DashboardMatches = () => {
   const [filter, setFilter] = useState("all");
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const { matches, loading: matchesLoading } = useMatches();
+  const { matches, loading: matchesLoading, refetch: refetchMatches } = useMatches();
   const { challenges, loading: challengesLoading, acceptChallenge } = useOpenChallenges();
 
   const getStatusColor = (status: string) => {
@@ -38,9 +39,11 @@ const DashboardMatches = () => {
     }
   };
 
-  const handleAcceptChallenge = (challengeId: string) => {
+  const handleAcceptChallenge = async (challengeId: string) => {
     if (!user) return;
-    acceptChallenge(challengeId, user.id);
+    await acceptChallenge(challengeId, user.id);
+    // Immediately refresh both lists for the host side UX
+    refetchMatches();
   };
 
   return (
@@ -140,7 +143,11 @@ const DashboardMatches = () => {
                               Upload Result
                             </Button>
                           )}
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => navigate(`/matches/${match.id}`)}
+                          >
                             <Eye className="mr-2 h-3 w-3" />
                             View Details
                           </Button>

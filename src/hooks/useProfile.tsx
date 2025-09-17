@@ -41,7 +41,7 @@ export function useProfile() {
 
       if (profileError && profileError.code !== 'PGRST116') throw profileError;
       
-      // Fetch stats
+      // Fetch stats (with fallback computation if absent)
       const { data: statsData, error: statsError } = await supabase
         .from('user_stats')
         .select('*')
@@ -70,8 +70,34 @@ export function useProfile() {
 
       if (gamerTagsError) throw gamerTagsError;
 
+      let resolvedStats = statsData;
+      if (!resolvedStats) {
+        // Fallback: compute minimal stats from matches
+        const { count: totalMatches } = await supabase
+          .from('matches')
+          .select('*', { count: 'exact', head: true })
+          .or(`creator_id.eq.${user.id},opponent_id.eq.${user.id}`);
+
+        const { count: totalWins } = await supabase
+          .from('matches')
+          .select('*', { count: 'exact', head: true })
+          .eq('winner_id', user.id);
+
+        resolvedStats = {
+          // @ts-ignore
+          user_id: user.id,
+          total_matches: totalMatches || 0,
+          total_wins: totalWins || 0,
+          total_losses: Math.max((totalMatches || 0) - (totalWins || 0), 0),
+          total_earnings: 0,
+          longest_win_streak: 0,
+          current_rank: null,
+          updated_at: new Date().toISOString()
+        } as any;
+      }
+
       setProfile(profileData);
-      setStats(statsData);
+      setStats(resolvedStats);
       setWallet(walletData);
       setGamerTags(gamerTagsData || []);
       setError(null);
@@ -89,11 +115,14 @@ export function useProfile() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          user_id: user.id,
-          ...updates,
-          updated_at: new Date().toISOString()
-        });
+        .upsert(
+          {
+            user_id: user.id,
+            ...updates,
+            updated_at: new Date().toISOString()
+          },
+          { onConflict: 'user_id' }
+        );
 
       if (error) throw error;
       

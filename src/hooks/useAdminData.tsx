@@ -40,6 +40,13 @@ export interface AdminMatch {
   winner?: string;
 }
 
+export interface AdminFees {
+  lifetime: number;
+  today: number;
+  last30Days: number;
+  recent: Array<{ id: string; match_id: string; fee_amount: number; created_at: string }>;
+}
+
 export const useAdminStats = () => {
   const [stats, setStats] = useState<AdminStats>({
     totalUsers: 0,
@@ -102,10 +109,29 @@ export const useAdminStats = () => {
         .eq('type', 'withdrawal')
         .eq('status', 'pending');
 
+      // Compute active users (users who created/played a match in last 24h)
+      const since = new Date();
+      since.setDate(since.getDate() - 1);
+      const { data: recentMatches } = await supabase
+        .from('matches')
+        .select('creator_id, opponent_id, created_at')
+        .gte('created_at', since.toISOString());
+      const activeUserSet = new Set<string>();
+      (recentMatches || []).forEach((m: any) => {
+        if (m.creator_id) activeUserSet.add(m.creator_id);
+        if (m.opponent_id) activeUserSet.add(m.opponent_id);
+      });
+
+      // Total revenue from platform_fees (sum of fee_amount)
+      const { data: feesRows } = await supabase
+        .from('platform_fees')
+        .select('fee_amount');
+      const totalRevenue = (feesRows || []).reduce((sum, r: any) => sum + (r.fee_amount || 0), 0);
+
       setStats({
         totalUsers: userCount || 0,
-        activeUsers: Math.floor((userCount || 0) * 0.8), // Mock active users as 80%
-        totalRevenue: 485000, // This would need a more complex calculation
+        activeUsers: activeUserSet.size,
+        totalRevenue,
         pendingWithdrawals: withdrawalCount || 0,
         activeMatches: activeMatchCount || 0,
         completedToday: todayMatches || 0,
@@ -139,34 +165,58 @@ export const useAdminUsers = () => {
     try {
       setLoading(true);
 
-      // Fetch profiles with stats and wallet data - use left joins to avoid empty results
-      const { data: profiles, error } = await supabase
+      // Fetch profiles
+      const { data: profiles, error: profErr } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          user_stats (*),
-          user_wallets (*)
-        `);
+        .select('*');
+      if (profErr) throw profErr;
 
-      if (error) throw error;
+      const userIds = (profiles || []).map(p => p.user_id);
+
+      // Fetch stats for these users
+      const { data: statsData, error: statsErr } = await supabase
+        .from('user_stats')
+        .select('*')
+        .in('user_id', userIds);
+      if (statsErr) throw statsErr;
+      const userIdToStats = new Map<string, any>((statsData || []).map(s => [s.user_id, s]));
+
+      // Fetch wallets for these users
+      const { data: walletsData, error: walletsErr } = await supabase
+        .from('user_wallets')
+        .select('*')
+        .in('user_id', userIds);
+      if (walletsErr) throw walletsErr;
+      const userIdToWallet = new Map<string, any>((walletsData || []).map(w => [w.user_id, w]));
+
+      // Fetch last activity (latest match for each user)
+      const { data: activityMatches } = await supabase
+        .from('matches')
+        .select('creator_id, opponent_id, created_at')
+        .or(`creator_id.in.("${userIds.join('\",\"')}"),opponent_id.in.("${userIds.join('\",\"')}")`)
+        .order('created_at', { ascending: false });
+      const lastActiveMap = new Map<string, string>();
+      (activityMatches || []).forEach((m: any) => {
+        const ts = m.created_at;
+        if (m.creator_id && !lastActiveMap.has(m.creator_id)) lastActiveMap.set(m.creator_id, ts);
+        if (m.opponent_id && !lastActiveMap.has(m.opponent_id)) lastActiveMap.set(m.opponent_id, ts);
+      });
 
       const adminUsers: AdminUser[] = (profiles || []).map(profile => {
-        const userStats = Array.isArray(profile.user_stats) ? profile.user_stats[0] : profile.user_stats;
-        const userWallet = Array.isArray(profile.user_wallets) ? profile.user_wallets[0] : profile.user_wallets;
-        
+        const userStats = userIdToStats.get(profile.user_id);
+        const userWallet = userIdToWallet.get(profile.user_id);
         return {
           id: profile.id,
           username: profile.username || 'Anonymous',
-          email: `${profile.username}@email.com`, // Mock email since we don't store it
+          email: `${profile.username || 'user'}@example.com`,
           joinDate: profile.created_at,
-          status: 'active', // Default status since we don't have a status field
+          status: 'active',
           matches: userStats?.total_matches || 0,
-          winRate: userStats?.total_matches ? 
-            Math.round((userStats.total_wins / userStats.total_matches) * 100) : 0,
+          winRate: userStats?.total_matches ? Math.round((userStats.total_wins / userStats.total_matches) * 100) : 0,
           totalEarnings: userStats?.total_earnings || 0,
           walletBalance: userWallet?.balance || 0,
-          lastActive: '2 hours ago', // Mock data
-          verified: true // Mock verified status
+          lastActive: lastActiveMap.get(profile.user_id) || '',
+          verified: !!profile.verified
         };
       });
 
@@ -210,16 +260,30 @@ export const useAdminMatches = () => {
 
       if (error) throw error;
 
-      const adminMatches: AdminMatch[] = (matchData || []).map(match => ({
+      // Enrich with usernames
+      const userIds = Array.from(new Set((matchData || []).flatMap((m: any) => [m.creator_id, m.opponent_id, m.winner_id]).filter(Boolean)));
+      let profilesById = new Map<string, any>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, username')
+          .in('user_id', userIds);
+        profilesById = new Map<string, any>((profiles || []).map((p: any) => [p.user_id, p]));
+      }
+
+      const adminMatches: AdminMatch[] = (matchData || []).map((match: any) => ({
         id: match.id,
         game: match.games?.short_name || 'Unknown',
         mode: match.game_modes?.name || 'Unknown',
-        players: ['Player 1', 'Player 2'], // Simplified for admin view
+        players: [
+          profilesById.get(match.creator_id)?.username || 'Unknown',
+          match.opponent_id ? (profilesById.get(match.opponent_id)?.username || 'Unknown') : '—'
+        ],
         stake_amount: match.stake_amount,
         status: match.status,
         duration_minutes: match.duration_minutes,
         created_at: match.created_at,
-        winner: match.winner_id ? 'Winner' : undefined
+        winner: match.winner_id ? (profilesById.get(match.winner_id)?.username || 'Unknown') : undefined
       }));
 
       setMatches(adminMatches);
@@ -255,4 +319,65 @@ export const useAdminMatches = () => {
   };
 
   return { matches, loading, refetch: fetchMatches, resolveDispute };
+};
+
+export const useAdminFees = () => {
+  const [fees, setFees] = useState<AdminFees>({ lifetime: 0, today: 0, last30Days: 0, recent: [] });
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      fetchFees();
+    }
+  }, [user]);
+
+  const fetchFees = async () => {
+    try {
+      setLoading(true);
+
+      // Lifetime total
+      const { data: lifetimeAgg, error: lifetimeErr } = await supabase
+        .from('platform_fees')
+        .select('fee_amount');
+      if (lifetimeErr) throw lifetimeErr;
+      const lifetime = (lifetimeAgg || []).reduce((s, r: any) => s + (r.fee_amount || 0), 0);
+
+      // Today
+      const today = new Date().toISOString().split('T')[0];
+      const { data: todayAgg, error: todayErr } = await supabase
+        .from('platform_fees')
+        .select('fee_amount, created_at')
+        .gte('created_at', `${today}T00:00:00.000Z`);
+      if (todayErr) throw todayErr;
+      const todayTotal = (todayAgg || []).reduce((s, r: any) => s + (r.fee_amount || 0), 0);
+
+      // Last 30 days
+      const last30 = new Date();
+      last30.setDate(last30.getDate() - 30);
+      const { data: last30Agg, error: last30Err } = await supabase
+        .from('platform_fees')
+        .select('fee_amount, created_at')
+        .gte('created_at', last30.toISOString());
+      if (last30Err) throw last30Err;
+      const last30Total = (last30Agg || []).reduce((s, r: any) => s + (r.fee_amount || 0), 0);
+
+      // Recent entries
+      const { data: recent, error: recentErr } = await supabase
+        .from('platform_fees')
+        .select('id, match_id, fee_amount, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (recentErr) throw recentErr;
+
+      setFees({ lifetime, today: todayTotal, last30Days: last30Total, recent: recent || [] });
+    } catch (error) {
+      console.error('Error fetching fees:', error);
+      toast.error('Failed to fetch platform fees');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { fees, loading, refetch: fetchFees };
 };

@@ -51,7 +51,7 @@ const DashboardProfile = () => {
     { id: 1, name: "First Victory", description: "Won your first match", icon: Trophy, earned: (stats?.total_wins || 0) >= 1 },
     { id: 2, name: "Winning Streak", description: "Won 5 matches in a row", icon: Target, earned: (stats?.longest_win_streak || 0) >= 5 },
     { id: 3, name: "Top Earner", description: "Earned ₦10,000 in total", icon: Star, earned: (stats?.total_earnings || 0) >= 10000 },
-    { id: 4, name: "Tournament Champion", description: "Won a tournament", icon: Award, earned: false },
+    { id: 4, name: "Tournament Champion", description: "Won a tournament", icon: Award, earned: (stats?.tournaments_won || 0) > 0 },
     { id: 5, name: "Legendary Player", description: "Reach 100 total wins", icon: TrendingUp, earned: (stats?.total_wins || 0) >= 100 }
   ];
 

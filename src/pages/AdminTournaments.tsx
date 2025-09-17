@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AdminSidebar from "@/components/AdminSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,41 +6,84 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Users, Clock, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminTournaments = () => {
   const navigate = useNavigate();
-  const tournaments = [
-    {
-      id: "T001",
-      name: "CODM Championship",
-      game: "Call of Duty Mobile",
-      participants: 64,
-      prizePool: "₦50,000",
-      status: "active",
-      startDate: "2024-01-20",
-      endDate: "2024-01-25"
-    },
-    {
-      id: "T002",
-      name: "PUBG Squad Battle",
-      game: "PUBG Mobile", 
-      participants: 32,
-      prizePool: "₦30,000",
-      status: "registration",
-      startDate: "2024-01-22",
-      endDate: "2024-01-27"
-    },
-    {
-      id: "T003",
-      name: "Free Fire Masters",
-      game: "Free Fire",
-      participants: 48,
-      prizePool: "₦25,000", 
-      status: "completed",
-      winner: "Team Phoenix",
-      endDate: "2024-01-15"
-    }
-  ];
+  const [tournaments, setTournaments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    active: 0,
+    totalParticipants: 0,
+    totalActivePrizePool: 0,
+    completedThisMonth: 0
+  });
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('tournaments')
+          .select(`*, games(name, short_name)`) 
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+
+        // For each tournament, fetch participants count if not present
+        const withCounts = await Promise.all((data || []).map(async (t: any) => {
+          let participants = t.current_participants;
+          if (participants == null) {
+            const { count } = await supabase
+              .from('tournament_participants')
+              .select('*', { count: 'exact', head: true })
+              .eq('tournament_id', t.id);
+            participants = count || 0;
+          }
+          return {
+            id: t.id,
+            name: t.name,
+            game: t.games?.name || 'Unknown',
+            participants,
+            prizePool: Number(t.prize_pool) || 0,
+            status: t.status,
+            startDate: t.start_date,
+            endDate: t.end_date,
+            winner_user_id: t.winner_user_id
+          };
+        }));
+
+        setTournaments(withCounts);
+
+        // Compute stats
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        const activeSet = new Set(['registration','in_progress','live','active']);
+        const active = withCounts.filter(t => activeSet.has(t.status)).length;
+        const totalParticipants = withCounts.reduce((s, t) => s + (t.participants || 0), 0);
+        const totalActivePrizePool = withCounts
+          .filter(t => activeSet.has(t.status))
+          .reduce((s, t) => s + (t.prizePool || 0), 0);
+        const completedThisMonth = withCounts.filter(t => {
+          if (t.status !== 'completed' || !t.endDate) return false;
+          const d = new Date(t.endDate);
+          return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        }).length;
+
+        setStats({
+          active,
+          totalParticipants,
+          totalActivePrizePool,
+          completedThisMonth
+        });
+      } catch (e: any) {
+        toast.error(e.message || 'Failed to load tournaments');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -61,7 +105,7 @@ const AdminTournaments = () => {
               <h1 className="text-3xl font-bold">Tournament Management</h1>
               <p className="text-muted-foreground">Create and manage platform tournaments</p>
             </div>
-            <Button onClick={() => navigate("/admin/tournaments/create")}>
+            <Button onClick={() => navigate("/admin/tournaments/create") }>
               <Plus className="h-4 w-4 mr-2" />
               Create Tournament
             </Button>
@@ -74,7 +118,7 @@ const AdminTournaments = () => {
                 <CardTitle className="text-sm font-medium">Active Tournaments</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">3</div>
+                <div className="text-2xl font-bold text-green-600">{stats.active}</div>
                 <p className="text-xs text-muted-foreground">Currently running</p>
               </CardContent>
             </Card>
@@ -83,7 +127,7 @@ const AdminTournaments = () => {
                 <CardTitle className="text-sm font-medium">Total Participants</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">144</div>
+                <div className="text-2xl font-bold text-blue-600">{stats.totalParticipants.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">Across all tournaments</p>
               </CardContent>
             </Card>
@@ -92,7 +136,7 @@ const AdminTournaments = () => {
                 <CardTitle className="text-sm font-medium">Prize Pool</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₦105k</div>
+                <div className="text-2xl font-bold">₦{stats.totalActivePrizePool.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">Total active prizes</p>
               </CardContent>
             </Card>
@@ -101,7 +145,7 @@ const AdminTournaments = () => {
                 <CardTitle className="text-sm font-medium">Completed</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-600">12</div>
+                <div className="text-2xl font-bold text-gray-600">{stats.completedThisMonth}</div>
                 <p className="text-xs text-muted-foreground">This month</p>
               </CardContent>
             </Card>
@@ -129,7 +173,7 @@ const AdminTournaments = () => {
                       <span className="text-sm">{tournament.participants} players</span>
                     </div>
                     <div className="text-lg font-bold text-primary">
-                      {tournament.prizePool}
+                      ₦{Number(tournament.prizePool || 0).toLocaleString()}
                     </div>
                   </div>
                   
@@ -137,15 +181,15 @@ const AdminTournaments = () => {
                     <Clock className="h-4 w-4" />
                     <span>
                       {tournament.status === "completed" 
-                        ? `Ended ${tournament.endDate}`
-                        : `${tournament.startDate} - ${tournament.endDate}`
+                        ? `Ended ${tournament.endDate ? new Date(tournament.endDate).toLocaleDateString() : ''}`
+                        : `${tournament.startDate ? new Date(tournament.startDate).toLocaleDateString() : ''} ${tournament.endDate ? `- ${new Date(tournament.endDate).toLocaleDateString()}` : ''}`
                       }
                     </span>
                   </div>
 
-                  {tournament.winner && (
+                  {tournament.winner_user_id && (
                     <div className="p-2 bg-muted rounded-lg">
-                      <p className="text-sm font-medium">Winner: {tournament.winner}</p>
+                      <p className="text-sm font-medium">Winner: {tournament.winner_user_id}</p>
                     </div>
                   )}
 

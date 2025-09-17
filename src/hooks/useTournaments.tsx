@@ -155,7 +155,8 @@ export function useUserTournaments() {
         .eq('status', 'registration');
 
       if (registeredIds.length > 0) {
-        availableQuery = availableQuery.not('id', 'in', registeredIds);
+        const inList = `(${registeredIds.map((id) => `"${id}"`).join(',')})`;
+        availableQuery = availableQuery.not('id', 'in', inList);
       }
 
       const { data: availableData, error: availableError } = await availableQuery;

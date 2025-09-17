@@ -39,7 +39,8 @@ export function useGames() {
             .from('matches')
             .select('*', { count: 'exact', head: true })
             .eq('game_id', game.id)
-            .in('status', ['awaiting_opponent', 'in_progress']);
+            .eq('status', 'awaiting_opponent')
+            .is('opponent_id', null);
 
           return {
             ...game,
@@ -93,7 +94,8 @@ export function useGame(gameId: string | undefined) {
         .from('matches')
         .select('*', { count: 'exact', head: true })
         .eq('game_id', id)
-        .in('status', ['awaiting_opponent', 'in_progress']);
+        .eq('status', 'awaiting_opponent')
+        .is('opponent_id', null);
 
       setGame({
         ...gameData,

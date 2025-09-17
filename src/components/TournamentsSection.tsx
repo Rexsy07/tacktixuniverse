@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Trophy, Users, Calendar, Zap, Clock, ArrowRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Tournament {
   id: string;
@@ -17,56 +19,31 @@ interface Tournament {
 }
 
 const TournamentsSection = () => {
-  const tournaments: Tournament[] = [
-    {
-      id: '1',
-      name: 'Free Fire Championship',
-      game: 'Free Fire',
-      prizePool: '₦50,000',
-      entryFee: '₦1,000',
-      participants: 32,
-      maxParticipants: 64,
-      startDate: 'Dec 15, 2024',
-      status: 'upcoming',
-      format: 'Single Elimination'
-    },
-    {
-      id: '2', 
-      name: 'CODM Sniper Masters',
-      game: 'CODM',
-      prizePool: '₦75,000',
-      entryFee: '₦1,500',
-      participants: 28,
-      maxParticipants: 32,
-      startDate: 'Dec 20, 2024',
-      status: 'upcoming',
-      format: '1v1 Knockout'
-    },
-    {
-      id: '3',
-      name: 'PUBG Squad Showdown',
-      game: 'PUBG',
-      prizePool: '₦100,000',
-      entryFee: '₦2,000',
-      participants: 16,
-      maxParticipants: 20,
-      startDate: 'LIVE NOW',
-      status: 'live',
-      format: '4v4 Teams'
-    },
-    {
-      id: '4',
-      name: 'PES Ultimate Cup',
-      game: 'PES',
-      prizePool: '₦30,000',
-      entryFee: '₦800',
-      participants: 24,
-      maxParticipants: 32,
-      startDate: 'Dec 25, 2024',
-      status: 'upcoming',
-      format: 'Swiss System'
-    }
-  ];
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from('tournaments')
+        .select('id, name, prize_pool, entry_fee, max_participants, current_participants, start_date, status, games(short_name), format')
+        .order('start_date', { ascending: true })
+        .limit(6);
+      const mapped = (data || []).map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        game: t.games?.short_name || 'Game',
+        prizePool: `₦${Number(t.prize_pool || 0).toLocaleString()}`,
+        entryFee: `₦${Number(t.entry_fee || 0).toLocaleString()}`,
+        participants: t.current_participants || 0,
+        maxParticipants: t.max_participants || 0,
+        startDate: t.start_date ? new Date(t.start_date).toLocaleDateString() : '',
+        status: (t.status === 'in_progress' ? 'live' : (t.status as any)) || 'upcoming',
+        format: t.format || 'Format'
+      }));
+      setTournaments(mapped as any);
+    };
+    load();
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,9 @@ import { Target, Gamepad2, Users, Trophy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useGames } from "@/hooks/useGames";
+import { useCreateChallenge } from "@/hooks/useCreateChallenge";
+import { supabase } from "@/integrations/supabase/client";
 
 // Import game covers for preview
 import codmCover from "@/assets/codm-cover.jpg";
@@ -21,9 +24,14 @@ import pesCover from "@/assets/pes-cover.jpg";
 
 const CreateChallenge = () => {
   const navigate = useNavigate();
+  const { games, loading: gamesLoading } = useGames();
+  const { createChallenge, loading: createLoading } = useCreateChallenge();
+  const [gameModes, setGameModes] = useState<any[]>([]);
+  const [loadingModes, setLoadingModes] = useState(false);
+  
   const [challengeData, setChallengeData] = useState({
-    game: "",
-    mode: "",
+    gameId: "",
+    modeId: "",
     format: "",
     stake: "",
     rules: "",
@@ -31,54 +39,50 @@ const CreateChallenge = () => {
     duration: ""
   });
 
-  const gameOptions = [
-    { id: "call-of-duty-mobile", name: "Call of Duty: Mobile", shortName: "CODM", cover: codmCover },
-    { id: "pubg-mobile", name: "PUBG Mobile", shortName: "PUBG", cover: pubgCover },
-    { id: "free-fire", name: "Free Fire", shortName: "FF", cover: freefireCover },
-    { id: "ea-fc-mobile", name: "EA FC Mobile", shortName: "EA FC", cover: eafcCover },
-    { id: "pes-mobile", name: "PES Mobile", shortName: "PES", cover: pesCover }
-  ];
-
-  const gameModes = {
-    "call-of-duty-mobile": [
-      { name: "Search & Destroy", formats: ["1v1", "2v2", "3v3", "5v5"], maps: ["Standoff", "Crash", "Crossfire", "Raid", "Summit"] },
-      { name: "Hardpoint", formats: ["2v2", "3v3", "5v5"], maps: ["Nuketown", "Raid", "Hijacked", "Firing Range", "Takeoff"] },
-      { name: "Domination", formats: ["2v2", "3v3", "5v5"], maps: ["Terminal", "Hackney Yard", "Meltdown", "Tunisia", "Highrise"] },
-      { name: "Team Deathmatch", formats: ["1v1", "2v2", "3v3", "5v5"], maps: ["Killhouse", "Shipment", "Rust", "Dome", "Coastal"] },
-      { name: "Gunfight", formats: ["1v1", "2v2"], maps: ["King", "Gulag Showers", "Pine", "Docks", "Saloon"] },
-      { name: "Snipers Only", formats: ["1v1", "2v2", "3v3"], maps: ["Crossfire", "Highrise", "Oasis", "Monastery", "Tunisia"] },
-      { name: "Battle Royale Kill Race", formats: ["Solo", "Duo", "Squad"], maps: ["Isolated", "Alcatraz"] }
-    ],
-    "pubg-mobile": [
-      { name: "Battle Royale Kill Race", formats: ["Solo", "Duo", "Squad"], maps: ["Erangel", "Miramar", "Sanhok", "Livik", "Vikendi"] },
-      { name: "Team Deathmatch", formats: ["2v2", "4v4"], maps: ["Warehouse", "Library", "Hangar", "Ruins"] },
-      { name: "Arena Challenges", formats: ["2v2", "4v4"], maps: ["Payload", "Arena Training", "Domination Maps"] }
-    ],
-    "free-fire": [
-      { name: "Battle Royale Kill Race", formats: ["Solo", "Duo", "Squad"], maps: ["Bermuda", "Kalahari", "Purgatory", "Alpine"] },
-      { name: "Clash Squad", formats: ["4v4"], maps: ["Factory", "Clock Tower", "Bermuda Peak", "Kalahari Base"] },
-      { name: "Lone Wolf", formats: ["1v1"], maps: ["Iron Dome", "Colosseum"] }
-    ],
-    "ea-fc-mobile": [
-      { name: "Head-to-Head", formats: ["1v1"], maps: ["Allianz Arena", "Old Trafford", "Santiago Bernabéu", "Parc des Princes"] },
-      { name: "VS Attack", formats: ["1v1"], maps: ["Various Stadiums"] },
-      { name: "Goal Challenges", formats: ["1v1"], maps: ["Training Ground", "Mini Pitch"] }
-    ],
-    "pes-mobile": [
-      { name: "Online Match", formats: ["1v1"], maps: ["Camp Nou", "San Siro", "Emirates Stadium", "Signal Iduna Park"] },
-      { name: "Quick Match", formats: ["1v1"], maps: ["Various Stadiums"] },
-      { name: "Skill Challenges", formats: ["1v1"], maps: ["Training Pitch"] }
-    ]
+  // Game cover mapping
+  const gameCovers: { [key: string]: string } = {
+    "CODM": codmCover,
+    "PUBG": pubgCover,
+    "FF": freefireCover,
+    "EA FC": eafcCover,
+    "PES": pesCover
   };
 
-  const selectedGame = gameOptions.find(game => game.id === challengeData.game);
-  const availableModes = challengeData.game ? gameModes[challengeData.game as keyof typeof gameModes] : [];
-  const selectedMode = availableModes.find(mode => mode.name === challengeData.mode);
+  const selectedGame = games.find(game => game.id === challengeData.gameId);
+  const selectedMode = gameModes.find(mode => mode.id === challengeData.modeId);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fetch game modes when game is selected
+  useEffect(() => {
+    if (challengeData.gameId) {
+      fetchGameModes(challengeData.gameId);
+    } else {
+      setGameModes([]);
+    }
+  }, [challengeData.gameId]);
+
+  const fetchGameModes = async (gameId: string) => {
+    try {
+      setLoadingModes(true);
+      const { data, error } = await supabase
+        .from('game_modes')
+        .select('*')
+        .eq('game_id', gameId)
+        .eq('is_active', true);
+
+      if (error) throw error;
+      setGameModes(data || []);
+    } catch (error) {
+      console.error('Error fetching game modes:', error);
+      toast.error('Failed to load game modes');
+    } finally {
+      setLoadingModes(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!challengeData.game || !challengeData.mode || !challengeData.format || !challengeData.stake) {
+    if (!challengeData.gameId || !challengeData.modeId || !challengeData.format || !challengeData.stake) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -87,9 +91,27 @@ const CreateChallenge = () => {
       toast.error("Minimum stake is ₦100");
       return;
     }
+
+    if (!selectedMode) {
+      toast.error("Please select a valid game mode");
+      return;
+    }
+
+    // Check if selected format is valid for this mode
+    if (!selectedMode.formats.includes(challengeData.format)) {
+      toast.error("Selected format is not available for this game mode");
+      return;
+    }
     
-    toast.success("Challenge created successfully! Waiting for opponents...");
-    navigate("/matches");
+    await createChallenge({
+      gameId: challengeData.gameId,
+      modeId: challengeData.modeId,
+      format: challengeData.format,
+      mapName: challengeData.map || undefined,
+      stakeAmount: parseInt(challengeData.stake),
+      durationMinutes: challengeData.duration ? parseInt(challengeData.duration.replace('min', '')) : undefined,
+      customRules: challengeData.rules || undefined
+    });
   };
 
   return (
@@ -107,51 +129,65 @@ const CreateChallenge = () => {
                   {/* Game Selection */}
                   <div>
                     <Label htmlFor="game">Select Game *</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
-                      {gameOptions.map((game) => (
-                        <div
-                          key={game.id}
-                          className={`cursor-pointer rounded-lg border-2 transition-all ${
-                            challengeData.game === game.id
-                              ? 'border-primary bg-primary/10'
-                              : 'border-muted hover:border-primary/50'
-                          }`}
-                          onClick={() => setChallengeData(prev => ({ ...prev, game: game.id, mode: "", format: "" }))}
-                        >
-                          <div className="p-3 text-center">
-                            <img 
-                              src={game.cover} 
-                              alt={game.name}
-                              className="w-full h-20 object-cover rounded mb-2"
-                            />
-                            <div className="text-sm font-semibold">{game.shortName}</div>
+                    {gamesLoading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                        <p className="mt-2 text-sm text-foreground/70">Loading games...</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
+                        {games.map((game) => (
+                          <div
+                            key={game.id}
+                            className={`cursor-pointer rounded-lg border-2 transition-all ${
+                              challengeData.gameId === game.id
+                                ? 'border-primary bg-primary/10'
+                                : 'border-muted hover:border-primary/50'
+                            }`}
+                            onClick={() => setChallengeData(prev => ({ ...prev, gameId: game.id, modeId: "", format: "" }))}
+                          >
+                            <div className="p-3 text-center">
+                              <img 
+                                src={gameCovers[game.short_name] || "/placeholder.svg"} 
+                                alt={game.name}
+                                className="w-full h-20 object-cover rounded mb-2"
+                              />
+                              <div className="text-sm font-semibold">{game.short_name}</div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Game Mode */}
-                  {challengeData.game && (
+                  {challengeData.gameId && (
                     <div>
                       <Label htmlFor="mode">Game Mode *</Label>
-                      <Select value={challengeData.mode} onValueChange={(value) => setChallengeData(prev => ({ ...prev, mode: value, format: "" }))}>
-                        <SelectTrigger className="mt-2">
-                          <SelectValue placeholder="Choose game mode" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableModes.map((mode) => (
-                            <SelectItem key={mode.name} value={mode.name}>
-                              {mode.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {loadingModes ? (
+                        <div className="text-center py-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+                          <p className="mt-2 text-sm text-foreground/70">Loading modes...</p>
+                        </div>
+                      ) : (
+                        <Select value={challengeData.modeId} onValueChange={(value) => setChallengeData(prev => ({ ...prev, modeId: value, format: "" }))}>
+                          <SelectTrigger className="mt-2">
+                            <SelectValue placeholder="Choose game mode" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {gameModes.map((mode) => (
+                              <SelectItem key={mode.id} value={mode.id}>
+                                {mode.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
                   )}
 
                   {/* Format Selection */}
-                  {challengeData.mode && selectedMode && (
+                  {challengeData.modeId && selectedMode && (
                     <div>
                       <Label>Match Format *</Label>
                       <RadioGroup 
@@ -159,7 +195,7 @@ const CreateChallenge = () => {
                         onValueChange={(value) => setChallengeData(prev => ({ ...prev, format: value }))}
                         className="flex flex-wrap gap-4 mt-2"
                       >
-                        {selectedMode.formats.map((format) => (
+                        {selectedMode.formats.map((format: string) => (
                           <div key={format} className="flex items-center space-x-2">
                             <RadioGroupItem value={format} id={format} />
                             <Label htmlFor={format} className="cursor-pointer">
@@ -172,7 +208,7 @@ const CreateChallenge = () => {
                   )}
 
                   {/* Map Selection */}
-                  {challengeData.format && selectedMode && (
+                  {challengeData.format && selectedMode && selectedMode.maps && selectedMode.maps.length > 0 && (
                     <div>
                       <Label htmlFor="map">Map/Stadium (Optional)</Label>
                       <Select value={challengeData.map} onValueChange={(value) => setChallengeData(prev => ({ ...prev, map: value }))}>
@@ -181,7 +217,7 @@ const CreateChallenge = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="random">Random Map</SelectItem>
-                          {selectedMode.maps.map((map) => (
+                          {selectedMode.maps.map((map: string) => (
                             <SelectItem key={map} value={map}>
                               {map}
                             </SelectItem>
@@ -237,9 +273,14 @@ const CreateChallenge = () => {
                     />
                   </div>
 
-                  <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent glow-primary" size="lg">
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-to-r from-primary to-accent glow-primary" 
+                    size="lg"
+                    disabled={createLoading}
+                  >
                     <Target className="mr-2 h-5 w-5" />
-                    Create Challenge
+                    {createLoading ? "Creating Challenge..." : "Create Challenge"}
                   </Button>
                 </form>
               </div>
@@ -259,7 +300,7 @@ const CreateChallenge = () => {
                   <div className="space-y-4">
                     <div className="text-center">
                       <img 
-                        src={selectedGame.cover} 
+                        src={gameCovers[selectedGame.short_name] || "/placeholder.svg"} 
                         alt={selectedGame.name}
                         className="w-full h-32 object-cover rounded-lg mb-3"
                       />
@@ -267,10 +308,10 @@ const CreateChallenge = () => {
                     </div>
                     
                     <div className="space-y-3">
-                      {challengeData.mode && (
+                      {challengeData.modeId && selectedMode && (
                         <div>
                           <span className="text-foreground/60 text-sm">Mode:</span>
-                          <div className="font-semibold">{challengeData.mode}</div>
+                          <div className="font-semibold">{selectedMode.name}</div>
                         </div>
                       )}
                       
@@ -283,7 +324,7 @@ const CreateChallenge = () => {
                         </div>
                       )}
                       
-                      {challengeData.map && (
+                      {challengeData.map && challengeData.map !== "random" && (
                         <div>
                           <span className="text-foreground/60 text-sm">Map:</span>
                           <div className="font-semibold">{challengeData.map}</div>

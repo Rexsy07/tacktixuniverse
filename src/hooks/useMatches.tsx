@@ -16,11 +16,52 @@ export function useMatches() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
 
   useEffect(() => {
     if (user) {
       fetchUserMatches();
     }
+  }, [user]);
+
+  // Realtime updates for the current user's matches (guarded by env)
+  useEffect(() => {
+    if (!user || !realtimeEnabled) return;
+
+    const channel = supabase
+      .channel(`matches-user-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'matches',
+          filter: `creator_id=eq.${user.id}`,
+        },
+        () => fetchUserMatches()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'matches',
+          filter: `opponent_id=eq.${user.id}`,
+        },
+        () => fetchUserMatches()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, realtimeEnabled]);
+
+  // Polling fallback for user matches (every 6s)
+  useEffect(() => {
+    if (!user) return;
+    const id = setInterval(fetchUserMatches, 6000);
+    return () => clearInterval(id);
   }, [user]);
 
   const fetchUserMatches = async () => {
@@ -84,9 +125,33 @@ export function useOpenChallenges(gameFilter?: string) {
   const [challenges, setChallenges] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
 
   useEffect(() => {
     fetchOpenChallenges();
+  }, [gameFilter]);
+
+  // Realtime updates for open challenges list (guarded by env)
+  useEffect(() => {
+    if (!realtimeEnabled) return;
+    const channel = supabase
+      .channel('matches-open-challenges')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'matches' },
+        () => fetchOpenChallenges()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [gameFilter, realtimeEnabled]);
+
+  // Polling fallback for open challenges (every 6s)
+  useEffect(() => {
+    const id = setInterval(fetchOpenChallenges, 6000);
+    return () => clearInterval(id);
   }, [gameFilter]);
 
   const fetchOpenChallenges = async () => {
@@ -138,9 +203,41 @@ export function useOpenChallenges(gameFilter?: string) {
   };
 
   const acceptChallenge = async (matchId: string, userId: string) => {
-    if (!userId) return;
+    if (!userId) {
+      toast.error('Please log in to accept challenges');
+      return;
+    }
 
     try {
+      console.log('Attempting to accept challenge:', { matchId, userId });
+      
+      // First, check if the match is still available for acceptance
+      const { data: match, error: fetchError } = await supabase
+        .from('matches')
+        .select('id, status, opponent_id, creator_id')
+        .eq('id', matchId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching match:', fetchError);
+        throw fetchError;
+      }
+
+      console.log('Match data:', match);
+
+      if (match.status !== 'awaiting_opponent' || match.opponent_id !== null) {
+        toast.error('This challenge is no longer available');
+        fetchOpenChallenges();
+        return;
+      }
+
+      if (match.creator_id === userId) {
+        toast.error('You cannot accept your own challenge');
+        return;
+      }
+
+      // Try the simple update approach first
+      console.log('Attempting to update match...');
       const { error } = await supabase
         .from('matches')
         .update({
@@ -150,13 +247,17 @@ export function useOpenChallenges(gameFilter?: string) {
         })
         .eq('id', matchId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Update failed:', error);
+        throw error;
+      }
       
+      console.log('Challenge accepted successfully');
       toast.success('Challenge accepted successfully!');
       fetchOpenChallenges();
     } catch (err: any) {
-      toast.error(err.message);
       console.error('Error accepting challenge:', err);
+      toast.error(err.message || 'Failed to accept challenge');
     }
   };
 
@@ -166,9 +267,33 @@ export function useOpenChallenges(gameFilter?: string) {
 export function useLiveMatches() {
   const [liveMatches, setLiveMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
 
   useEffect(() => {
     fetchLiveMatches();
+  }, []);
+
+  // Realtime updates for live/awaiting matches feed (guarded by env)
+  useEffect(() => {
+    if (!realtimeEnabled) return;
+    const channel = supabase
+      .channel('matches-live-feed')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'matches' },
+        () => fetchLiveMatches()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [realtimeEnabled]);
+
+  // Polling fallback for live matches (every 8s)
+  useEffect(() => {
+    const id = setInterval(fetchLiveMatches, 8000);
+    return () => clearInterval(id);
   }, []);
 
   const fetchLiveMatches = async () => {

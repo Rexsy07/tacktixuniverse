@@ -3,12 +3,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Clock, Users, Zap, Filter } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useLiveMatches } from "@/hooks/useMatches";
 import { useAuth } from "@/hooks/useAuth";
 
 const LiveMatchFeed = () => {
   const [filter, setFilter] = useState('all');
+  const navigate = useNavigate();
   const { liveMatches, loading } = useLiveMatches();
   const { user } = useAuth();
 
@@ -146,6 +147,7 @@ const LiveMatchFeed = () => {
                     className="w-full"
                     variant={match.status === 'awaiting' ? 'default' : 'outline'}
                     disabled={match.status === 'completed'}
+                    onClick={() => navigate(`/matches/${match.id}`)}
                   >
                     {match.status === 'awaiting' && 'Join Match'}
                     {match.status === 'in-progress' && 'Watch Live'}

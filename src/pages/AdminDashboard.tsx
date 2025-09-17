@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,28 +9,53 @@ import {
 } from "lucide-react";
 import AdminSidebar from "@/components/AdminSidebar";
 import { useAdminStats } from "@/hooks/useAdminData";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { stats, loading } = useAdminStats();
+  const [recentUsers, setRecentUsers] = useState<any[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
 
-  const recentUsers = [
-    { username: "NaijaSharpShooter", joinDate: "2024-01-15", matches: 23, earnings: 12500 },
-    { username: "LagosWarrior", joinDate: "2024-01-14", matches: 15, earnings: 8200 },
-    { username: "AbujaTitan", joinDate: "2024-01-14", matches: 31, earnings: 15600 }
-  ];
+  // Load real recent users and transactions
+  useEffect(() => {
+    const load = async () => {
+      const { data: users } = await supabase
+        .from('profiles')
+        .select('username, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      setRecentUsers((users || []).map(u => ({
+        username: u.username || 'Anonymous',
+        joinDate: u.created_at,
+        matches: 0,
+        earnings: 0
+      })));
 
-  const recentTransactions = [
-    { id: "1", user: "ChampionCODM", type: "withdrawal", amount: 5000, status: "pending" },
-    { id: "2", user: "WarzoneMaster", type: "deposit", amount: 2000, status: "completed" },
-    { id: "3", user: "FreeFire King", type: "match_win", amount: 800, status: "completed" }
-  ];
+      const { data: txns } = await supabase
+        .from('transactions')
+        .select('id, user_id, type, amount, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      setRecentTransactions((txns || []).map(t => ({
+        id: t.id,
+        user: (t.user_id || '').substring(0, 6) + '…',
+        type: t.type,
+        amount: Number(t.amount) || 0,
+        status: t.status
+      })));
 
-  const alerts = [
-    { type: "dispute", message: "8 match disputes awaiting review", urgent: true },
-    { type: "withdrawal", message: "15 withdrawal requests pending", urgent: false },
-    { type: "system", message: "Server maintenance due in 2 hours", urgent: true }
-  ];
+      const { count: disputes } = await supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'disputed');
+      setAlerts([
+        { type: 'dispute', message: `${disputes || 0} match disputes awaiting review`, urgent: (disputes || 0) > 0 }
+      ]);
+    };
+    load();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -125,7 +151,7 @@ const AdminDashboard = () => {
                       <div>
                         <div className="font-semibold">{user.username}</div>
                         <div className="text-xs text-foreground/60">
-                          {user.matches} matches • ₦{user.earnings.toLocaleString()}
+                          {Number(user.matches || 0)} matches • ₦{Number(user.earnings || 0).toLocaleString()}
                         </div>
                       </div>
                       <div className="text-xs text-foreground/60">
