@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>404</title>
+    <meta http-equiv="refresh" content="0; url=./" />
+  </head>
+  <body>
+    <p>If you are not redirected automatically, <a href="./">click here</a>.</p>
+    <script>
+      // SPA redirect for GitHub Pages: rewrite to index preserving path
+      (function() {
+        var redirect = sessionStorage.getItem('redirect');
+        if (!redirect) {
+          var path = location.pathname.replace(/^(\/[^\/]+)\//, '/');
+          sessionStorage.setItem('redirect', path + location.search + location.hash);
+          location.replace('./');
+        } else {
+          sessionStorage.removeItem('redirect');
+          history.replaceState(null, null, redirect);
+        }
+      })();
+    </script>
+  </body>
+  </html>
+
+
