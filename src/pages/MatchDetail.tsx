@@ -15,6 +15,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import TeamParticipants from "@/components/TeamParticipants";
+import JoinTeamMatch from "@/components/JoinTeamMatch";
+import { getFormatDisplayName, isTeamFormat } from "@/utils/gameFormats";
 
 interface MatchDetail {
   id: string;
@@ -163,7 +166,10 @@ const MatchDetail = () => {
   };
 
   const canAcceptChallenge = () => {
+    // Only allow accepting for 1v1 matches
+    // Team matches use the join team functionality instead
     return match?.status === 'awaiting_opponent' && 
+           match?.format === '1v1' &&
            match?.creator_id !== user?.id && 
            !match?.opponent_id;
   };
@@ -220,7 +226,8 @@ const MatchDetail = () => {
     if (!user || !match) return;
 
     try {
-      const { error } = await supabase
+      // Update the match with opponent and status
+      const { error: matchError } = await supabase
         .from('matches')
         .update({
           opponent_id: user.id,
@@ -229,7 +236,23 @@ const MatchDetail = () => {
         })
         .eq('id', match.id);
 
-      if (error) throw error;
+      if (matchError) throw matchError;
+
+      // For 1v1 matches, add only the opponent to match_participants table
+      // (creator is already added when the challenge was created)
+      const { error: participantsError } = await supabase
+        .from('match_participants')
+        .insert({
+          match_id: match.id,
+          user_id: user.id,
+          team: 'B' as const,
+          role: 'captain' as const
+        });
+
+      if (participantsError) {
+        console.warn('Could not add opponent participant:', participantsError);
+        // Don't fail the challenge acceptance if participant can't be added
+      }
       
       toast.success('Challenge accepted successfully!');
       fetchMatchDetails(); // Refresh the match data
@@ -266,9 +289,16 @@ const MatchDetail = () => {
 
   const isCreator = match.creator_id === user?.id;
   const isOpponent = match.opponent_id === user?.id;
-  const canView = isCreator || isOpponent || user?.id === match.creator_id || user?.id === match.opponent_id;
+  
+  // Allow access for:
+  // 1. Creator and opponent
+  // 2. Any logged-in user for open challenges (awaiting_opponent)
+  // 3. Any participant in team matches (check match_participants)
+  const canView = isCreator || isOpponent || 
+                  match.status === 'awaiting_opponent' || 
+                  match.status === 'in_progress';
 
-  if (!canView) {
+  if (!canView || !user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -339,7 +369,7 @@ const MatchDetail = () => {
                       <div>
                         <span className="text-foreground/60 text-sm">Format:</span>
                         <div className="font-semibold">
-                          <Badge variant="outline">{match.format}</Badge>
+                          <Badge variant="outline">{getFormatDisplayName(match.format)}</Badge>
                         </div>
                       </div>
                       
@@ -395,72 +425,28 @@ const MatchDetail = () => {
                 </div>
               </Card>
 
-              {/* Players */}
+              {/* Team Participants */}
               <Card className="glass-card">
                 <div className="p-6">
-                  <h2 className="text-xl font-bold mb-4">Players</h2>
-                  
-                  <div className="space-y-4">
-                    {/* Creator */}
-                    <div className="flex items-center justify-between p-4 glass rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12">
-                          <AvatarFallback className="bg-gradient-to-r from-primary to-accent text-primary-foreground">
-                            {match.creator_profile?.username?.[0]?.toUpperCase() || 'C'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-semibold">{match.creator_profile?.username || 'Unknown'}</div>
-                          <div className="text-sm text-foreground/70">Creator</div>
-                        </div>
-                      </div>
-                      {match.winner_id === match.creator_id && (
-                        <Badge className="bg-success text-success-foreground">
-                          <Trophy className="h-3 w-3 mr-1" />
-                          Winner
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* VS Divider */}
-                    <div className="flex items-center justify-center">
-                      <div className="text-2xl font-bold text-foreground/30">VS</div>
-                    </div>
-
-                    {/* Opponent */}
-                    <div className="flex items-center justify-between p-4 glass rounded-lg">
-                      <div className="flex items-center gap-3">
-                        {match.opponent_id ? (
-                          <>
-                            <Avatar className="h-12 w-12">
-                              <AvatarFallback className="bg-gradient-to-r from-accent to-primary text-primary-foreground">
-                                {(match.opponent_profile?.username?.[0] || match.opponent_id.substring(0, 1)).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-semibold">
-                                {match.opponent_profile?.username || `Player ${match.opponent_id.substring(0, 6)}…`}
-                              </div>
-                              <div className="text-sm text-foreground/70">Opponent</div>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="text-center py-4">
-                            <Users className="h-8 w-8 mx-auto text-foreground/30 mb-2" />
-                            <div className="text-sm text-foreground/70">Waiting for opponent...</div>
-                          </div>
-                        )}
-                      </div>
-                      {match.opponent_id && match.winner_id === match.opponent_id && (
-                        <Badge className="bg-success text-success-foreground">
-                          <Trophy className="h-3 w-3 mr-1" />
-                          Winner
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
+                  <TeamParticipants
+                    matchId={match.id}
+                    format={match.format}
+                    winnerId={match.winner_id}
+                    creatorId={match.creator_id}
+                    opponentId={match.opponent_id}
+                  />
                 </div>
               </Card>
+
+              {/* Join Team Section for Team Matches */}
+              {match.status === 'awaiting_opponent' && isTeamFormat(match.format) && (
+                <JoinTeamMatch
+                  matchId={match.id}
+                  format={match.format}
+                  creatorId={match.creator_id}
+                  onJoinSuccess={fetchMatchDetails}
+                />
+              )}
 
               {/* Results */}
               {match.status === 'completed' && (

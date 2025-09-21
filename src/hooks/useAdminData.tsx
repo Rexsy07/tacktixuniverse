@@ -20,6 +20,7 @@ export interface AdminUser {
   email: string;
   joinDate: string;
   status: 'active' | 'suspended' | 'pending';
+  role: 'user' | 'admin';
   matches: number;
   winRate: number;
   totalEarnings: number;
@@ -123,10 +124,23 @@ export const useAdminStats = () => {
       });
 
       // Total revenue from platform_fees (sum of fee_amount)
-      const { data: feesRows } = await supabase
-        .from('platform_fees')
-        .select('fee_amount');
-      const totalRevenue = (feesRows || []).reduce((sum, r: any) => sum + (r.fee_amount || 0), 0);
+      let totalRevenue = 0;
+      try {
+        const { data: feesRows, error: feesError } = await supabase
+          .from('platform_fees')
+          .select('fee_amount');
+        if (feesError && feesError.code === 'PGRST205') {
+          console.warn('platform_fees table not found, defaulting to 0 revenue');
+          totalRevenue = 0;
+        } else if (feesError) {
+          throw feesError;
+        } else {
+          totalRevenue = (feesRows || []).reduce((sum, r: any) => sum + (r.fee_amount || 0), 0);
+        }
+      } catch (err: any) {
+        console.warn('Could not fetch platform fees:', err.message);
+        totalRevenue = 0;
+      }
 
       setStats({
         totalUsers: userCount || 0,
@@ -174,12 +188,25 @@ export const useAdminUsers = () => {
       const userIds = (profiles || []).map(p => p.user_id);
 
       // Fetch stats for these users
-      const { data: statsData, error: statsErr } = await supabase
-        .from('user_stats')
-        .select('*')
-        .in('user_id', userIds);
-      if (statsErr) throw statsErr;
-      const userIdToStats = new Map<string, any>((statsData || []).map(s => [s.user_id, s]));
+      let userIdToStats = new Map<string, any>();
+      try {
+        const { data: statsData, error: statsErr } = await supabase
+          .from('user_stats')
+          .select('*')
+          .in('user_id', userIds);
+        
+        if (statsErr && statsErr.code === 'PGRST205') {
+          console.warn('user_stats table not found, using default values');
+          userIdToStats = new Map<string, any>();
+        } else if (statsErr) {
+          throw statsErr;
+        } else {
+          userIdToStats = new Map<string, any>((statsData || []).map(s => [s.user_id, s]));
+        }
+      } catch (err: any) {
+        console.warn('Could not fetch user stats:', err.message);
+        userIdToStats = new Map<string, any>();
+      }
 
       // Fetch wallets for these users
       const { data: walletsData, error: walletsErr } = await supabase
@@ -188,6 +215,14 @@ export const useAdminUsers = () => {
         .in('user_id', userIds);
       if (walletsErr) throw walletsErr;
       const userIdToWallet = new Map<string, any>((walletsData || []).map(w => [w.user_id, w]));
+
+      // Fetch user roles
+      const { data: rolesData, error: rolesErr } = await supabase
+        .from('user_roles')
+        .select('*')
+        .in('user_id', userIds);
+      if (rolesErr && rolesErr.code !== 'PGRST205') throw rolesErr;
+      const userIdToRole = new Map<string, any>((rolesData || []).map(r => [r.user_id, r]));
 
       // Fetch last activity (latest match for each user)
       const { data: activityMatches } = await supabase
@@ -205,12 +240,14 @@ export const useAdminUsers = () => {
       const adminUsers: AdminUser[] = (profiles || []).map(profile => {
         const userStats = userIdToStats.get(profile.user_id);
         const userWallet = userIdToWallet.get(profile.user_id);
+        const userRole = userIdToRole.get(profile.user_id);
         return {
           id: profile.id,
           username: profile.username || 'Anonymous',
           email: `${profile.username || 'user'}@example.com`,
           joinDate: profile.created_at,
           status: 'active',
+          role: userRole?.role || 'user',
           matches: userStats?.total_matches || 0,
           winRate: userStats?.total_matches ? Math.round((userStats.total_wins / userStats.total_matches) * 100) : 0,
           totalEarnings: userStats?.total_earnings || 0,
@@ -230,7 +267,43 @@ export const useAdminUsers = () => {
     }
   };
 
-  return { users, loading, refetch: fetchUsers };
+  const changeUserRole = async (userId: string, newRole: 'user' | 'admin') => {
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .upsert({
+          user_id: userId,
+          role: newRole
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) throw error;
+
+      toast.success(`User role updated to ${newRole}`);
+      await fetchUsers(); // Refresh the users list
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error updating user role:', error);
+      toast.error(`Failed to update user role: ${error.message}`);
+      return { success: false, error };
+    }
+  };
+
+  const suspendUser = async (userId: string) => {
+    try {
+      // You can extend this to update a status field if you have one
+      toast.success('User suspended (extend this function as needed)');
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error suspending user:', error);
+      toast.error(`Failed to suspend user: ${error.message}`);
+      return { success: false, error };
+    }
+  };
+
+  return { users, loading, refetch: fetchUsers, changeUserRole, suspendUser };
 };
 
 export const useAdminMatches = () => {
@@ -336,11 +409,20 @@ export const useAdminFees = () => {
     try {
       setLoading(true);
 
-      // Lifetime total
+      // Check if platform_fees table exists by trying to query it
       const { data: lifetimeAgg, error: lifetimeErr } = await supabase
         .from('platform_fees')
         .select('fee_amount');
-      if (lifetimeErr) throw lifetimeErr;
+      
+      // If table doesn't exist, return default empty values
+      if (lifetimeErr && lifetimeErr.code === 'PGRST205') {
+        console.warn('platform_fees table not found, using default values');
+        setFees({ lifetime: 0, today: 0, last30Days: 0, recent: [] });
+        return;
+      } else if (lifetimeErr) {
+        throw lifetimeErr;
+      }
+
       const lifetime = (lifetimeAgg || []).reduce((s, r: any) => s + (r.fee_amount || 0), 0);
 
       // Today

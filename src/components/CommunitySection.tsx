@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Star, MessageCircle, Users, ExternalLink, Quote } from "lucide-react";
+import { toast } from "sonner";
 
 const CommunitySection = () => {
   const testimonials = [
@@ -75,30 +76,41 @@ const CommunitySection = () => {
       icon: "💬",
       members: "3.2K",
       description: "Join live discussions, find teammates, get support",
-      cta: "Join Server"
+      cta: "Join Server",
+      url: "https://discord.gg/tacktixedge"
     },
     {
       platform: "WhatsApp",
       icon: "📱",
       members: "1.8K",
       description: "Quick support, updates, and community chat",
-      cta: "Join Group"
+      cta: "Join Group",
+      url: "https://wa.me/+2348000000000"
     },
     {
       platform: "Telegram",
       icon: "⚡",
       members: "2.1K",
       description: "Tournament announcements and live match updates",
-      cta: "Follow Channel"
+      cta: "Follow Channel",
+      url: "https://t.me/tacktixedge"
     },
     {
       platform: "TikTok",
       icon: "🎵",
       members: "5.4K",
       description: "Gaming highlights, tutorials, and community content",
-      cta: "Follow Us"
+      cta: "Follow Us",
+      url: "https://tiktok.com/@tacktixedge"
     }
   ];
+
+  const handleSocialClick = (platform: string, url: string) => {
+    // For now, show a notification that the feature is coming soon
+    toast.info(`${platform} community coming soon! Stay tuned for updates.`);
+    // In production, you would open the actual social media links:
+    // window.open(url, '_blank');
+  };
 
   return (
     <section className="py-16 bg-gradient-to-b from-background/50 to-background">
@@ -220,7 +232,8 @@ const CommunitySection = () => {
                   </p>
                   <Button 
                     size="sm" 
-                    className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                    className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-200"
+                    onClick={() => handleSocialClick(channel.platform, channel.url)}
                   >
                     <ExternalLink className="mr-2 h-4 w-4" />
                     {channel.cta}

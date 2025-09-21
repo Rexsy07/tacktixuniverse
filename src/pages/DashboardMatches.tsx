@@ -4,27 +4,34 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Plus, Target, Clock, Trophy, Users, 
-  Filter, Search, Eye, Upload 
+  Plus, Target, Trophy, 
+  Eye, Upload 
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useMatches, useOpenChallenges } from "@/hooks/useMatches";
 import { useAuth } from "@/hooks/useAuth";
+import { TeamDisplay } from "@/components/TeamDisplay";
+
+interface DashboardLayoutProps {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}
 
 const DashboardMatches = () => {
   const [filter, setFilter] = useState("all");
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  
   const { matches, loading: matchesLoading, refetch: refetchMatches } = useMatches();
   const { challenges, loading: challengesLoading, acceptChallenge } = useOpenChallenges();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed": return "bg-success";
-      case "in_progress": return "bg-destructive";
-      case "awaiting_opponent": return "bg-primary";
-      case "pending": return "bg-warning";
+      case "in_progress": return "bg-warning";
+      case "cancelled": return "bg-destructive";
       default: return "bg-muted";
     }
   };
@@ -32,234 +39,136 @@ const DashboardMatches = () => {
   const getStatusText = (status: string) => {
     switch (status) {
       case "completed": return "Completed";
-      case "in_progress": return "Live";
-      case "awaiting_opponent": return "Waiting";
-      case "pending": return "Upload Result";
-      default: return status;
+      case "in_progress": return "In Progress";
+      case "cancelled": return "Cancelled";
+      default: return "Pending";
     }
   };
 
-  const handleAcceptChallenge = async (challengeId: string) => {
+  const handleAcceptChallenge = async (challengeId: string, format: string) => {
     if (!user) return;
+
+    // For team-based matches, navigate to match details where they can join teams flexibly
+    if (['2v2', '3v3', '5v5'].includes(format)) {
+      navigate(`/matches/${challengeId}`);
+      return;
+    }
+
+    // For 1v1 matches, accept directly
     await acceptChallenge(challengeId, user.id);
-    // Immediately refresh both lists for the host side UX
     refetchMatches();
   };
 
   return (
-    <DashboardLayout 
+    <DashboardLayout
       title="Matches"
-      description="Create challenges, find opponents, and track your matches"
+      description="View your match history and open challenges"
     >
-      <div className="mb-8 flex justify-end">
-        <Link to="/create-challenge">
-          <Button className="bg-gradient-to-r from-primary to-accent glow-primary">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Challenge
-          </Button>
-        </Link>
-      </div>
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Matches</h2>
+            <p className="text-muted-foreground">
+              View your match history and open challenges
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Link to="/create-challenge">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" /> Create Challenge
+              </Button>
+            </Link>
+          </div>
+        </div>
 
-      <Tabs defaultValue="my-matches" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 glass-card mb-8">
-          <TabsTrigger value="my-matches">My Matches</TabsTrigger>
-          <TabsTrigger value="open-challenges">Open Challenges</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="matches" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="matches">Match History</TabsTrigger>
+            <TabsTrigger value="challenges">Open Challenges</TabsTrigger>
+          </TabsList>
 
-        {/* My Matches */}
-        <TabsContent value="my-matches">
-          <div className="space-y-6">
+          <TabsContent value="matches">
             {matchesLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-                <p className="mt-4 text-foreground/70">Loading your matches...</p>
-              </div>
-            ) : matches.length === 0 ? (
-              <div className="text-center py-12">
-                <Trophy className="h-16 w-16 mx-auto text-foreground/30 mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No Matches Yet</h3>
-                <p className="text-foreground/70 mb-6">Start your gaming journey by creating a challenge!</p>
-                <Link to="/create-challenge">
-                  <Button>Create Your First Challenge</Button>
-                </Link>
-              </div>
+              <div>Loading matches...</div>
+            ) : matches?.length === 0 ? (
+              <div>No matches found</div>
             ) : (
-              matches.map((match) => {
-                const isCreator = match.creator_id === user?.id;
-                const opponent = isCreator ? match.opponent_profile : match.creator_profile;
-                const canUploadResult = match.status === "in_progress" || 
-                  (match.status === "completed" && !match.winner_id);
-
-                return (
-                  <Card key={match.id} className="glass-card">
-                    <div className="p-6">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-4 mb-3">
-                            <Badge variant="secondary">{match.games?.short_name}</Badge>
-                            <Badge className={`${getStatusColor(match.status)} text-white`}>
-                              {getStatusText(match.status)}
-                            </Badge>
-                            {match.winner_id && (
-                              <Badge className={match.winner_id === user?.id ? "bg-success" : "bg-destructive"}>
-                                {match.winner_id === user?.id ? "WON" : "LOST"}
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                              <span className="text-foreground/50">Opponent:</span>
-                              <div className="font-semibold">
-                                {opponent?.username || (match.status === 'awaiting_opponent' ? 'Waiting...' : 'Unknown')}
-                              </div>
-                            </div>
-                            <div>
-                              <span className="text-foreground/50">Mode:</span>
-                              <div className="font-semibold">{match.game_modes?.name} ({match.format})</div>
-                            </div>
-                            <div>
-                              <span className="text-foreground/50">Stake:</span>
-                              <div className="font-semibold text-primary">₦{match.stake_amount?.toLocaleString()}</div>
-                            </div>
-                            <div>
-                              <span className="text-foreground/50">Created:</span>
-                              <div className="font-semibold">{new Date(match.created_at).toLocaleDateString()}</div>
-                            </div>
-                          </div>
-
-                          {match.custom_rules && (
-                            <div className="mt-3">
-                              <span className="text-foreground/50 text-sm">Rules: </span>
-                              <span className="text-sm">{match.custom_rules}</span>
-                            </div>
+              <div className="grid gap-4">
+                {matches?.map((match) => (
+                  <Card key={match.id} className="p-6">
+                    <div className="flex flex-col md:flex-row justify-between items-start">
+                      <div>
+                        <Badge className={getStatusColor(match.status)}>
+                          {getStatusText(match.status)}
+                        </Badge>
+                        <div className="mt-4">
+                          {['2v2', '3v3', '5v5'].includes(match.format) && (
+                            <TeamDisplay matchId={match.id} format={match.format} />
                           )}
                         </div>
-                        
-                        <div className="mt-4 md:mt-0 md:ml-6 flex gap-2">
-                          {canUploadResult && (
-                            <Button size="sm" className="bg-gradient-to-r from-primary to-accent">
-                              <Upload className="mr-2 h-3 w-3" />
-                              Upload Result
-                            </Button>
-                          )}
+                      </div>
+                      <div className="mt-4 md:mt-0 md:ml-6 flex gap-2">
+                        {match.status !== "cancelled" && (
                           <Button 
-                            size="sm" 
                             variant="outline"
+                            size="sm"
                             onClick={() => navigate(`/matches/${match.id}`)}
                           >
-                            <Eye className="mr-2 h-3 w-3" />
-                            View Details
+                            <Eye className="mr-2 h-4 w-4" /> View Details
                           </Button>
-                        </div>
+                        )}
+                        {match.status === "completed" && (
+                          <Button 
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/matches/${match.id}/upload`)}
+                          >
+                            <Upload className="mr-2 h-4 w-4" /> Upload Result
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </Card>
-                );
-              })
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Open Challenges */}
-        <TabsContent value="open-challenges">
-          <div className="space-y-6">
-            {/* Filter Bar */}
-            <Card className="glass-card">
-              <div className="p-4">
-                <div className="flex flex-wrap gap-2">
-                  {['all', 'CODM', 'PUBG', 'Free Fire', 'EA FC', 'PES'].map((gameFilter) => (
-                    <Button
-                      key={gameFilter}
-                      variant={filter === gameFilter ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setFilter(gameFilter)}
-                      className="glass-button"
-                    >
-                      {gameFilter === 'all' ? 'All Games' : gameFilter}
-                    </Button>
-                  ))}
-                </div>
+                ))}
               </div>
-            </Card>
-            
-            {/* Challenges List */}
-            <div className="space-y-6">
-              {challengesLoading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-                  <p className="mt-4 text-foreground/70">Loading open challenges...</p>
-                </div>
-              ) : challenges.length === 0 ? (
-                <div className="text-center py-12">
-                  <Target className="h-16 w-16 mx-auto text-foreground/30 mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">No Open Challenges</h3>
-                  <p className="text-foreground/70 mb-6">Be the first to create a challenge!</p>
-                  <Link to="/create-challenge">
-                    <Button>Create Challenge</Button>
-                  </Link>
-                </div>
-              ) : (
-                challenges.map((challenge) => (
-                  <Card key={challenge.id} className="glass-card hover:glow-primary transition-all duration-300">
-                    <div className="p-6">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-4 mb-3">
-                            <h3 className="text-lg font-bold">
-                              {challenge.creator_profile?.username || "Anonymous"}
-                            </h3>
-                            <Badge variant="secondary">{challenge.games?.short_name}</Badge>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                              <span className="text-foreground/50">Mode:</span>
-                              <div className="font-semibold">{challenge.game_modes?.name} ({challenge.format})</div>
-                            </div>
-                            <div>
-                              <span className="text-foreground/50">Stake:</span>
-                              <div className="font-semibold text-primary">₦{challenge.stake_amount?.toLocaleString()}</div>
-                            </div>
-                            <div>
-                              <span className="text-foreground/50">Map:</span>
-                              <div className="font-semibold">{challenge.map_name || "Any"}</div>
-                            </div>
-                            <div>
-                              <span className="text-foreground/50">Posted:</span>
-                              <div className="font-semibold">{new Date(challenge.created_at).toLocaleDateString()}</div>
-                            </div>
-                          </div>
+            )}
+          </TabsContent>
 
-                          {challenge.custom_rules && (
-                            <div className="mt-3">
-                              <span className="text-foreground/50 text-sm">Rules: </span>
-                              <span className="text-sm">{challenge.custom_rules}</span>
-                            </div>
+          <TabsContent value="challenges">
+            {challengesLoading ? (
+              <div>Loading challenges...</div>
+            ) : challenges?.length === 0 ? (
+              <div>No open challenges</div>
+            ) : (
+              <div className="grid gap-4">
+                {challenges?.map((challenge) => (
+                  <Card key={challenge.id} className="p-6">
+                    <div className="flex flex-col md:flex-row justify-between items-start">
+                      <div>
+                        <Badge>Open Challenge</Badge>
+                        <div className="mt-4">
+                          {['2v2', '3v3', '5v5'].includes(challenge.format) && (
+                            <TeamDisplay matchId={challenge.id} format={challenge.format} />
                           )}
                         </div>
-                        
-                        <div className="mt-4 md:mt-0 md:ml-6">
-                          <Button 
-                            className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                            onClick={() => handleAcceptChallenge(challenge.id)}
-                            disabled={!user || challenge.creator_id === user?.id}
-                          >
-                            <Target className="mr-2 h-4 w-4" />
-                            {!user ? 'Login to Accept' : 
-                             challenge.creator_id === user?.id ? 'Your Challenge' : 
-                             'Accept Challenge'}
-                          </Button>
-                        </div>
+                      </div>
+                      <div className="mt-4 md:mt-0 md:ml-6">
+                        <Button 
+                          onClick={() => handleAcceptChallenge(challenge.id, challenge.format)}
+                          disabled={!user || challenge.creator_id === user?.id}
+                        >
+                          {['2v2', '3v3', '5v5'].includes(challenge.format) ? 'Join Match' : 'Accept Challenge'}
+                        </Button>
                       </div>
                     </div>
                   </Card>
-                ))
-              )}
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+      </div>
     </DashboardLayout>
   );
 };

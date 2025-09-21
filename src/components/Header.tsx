@@ -22,10 +22,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
+import { useMatches } from '@/hooks/useMatches';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, signOut, isAdmin } = useAuth();
+  const { wallet, loading: profileLoading } = useProfile();
+  const { matches } = useMatches();
+  const pendingNotifs = (matches || []).filter((m: any) => m.status === 'pending_result' || m.status === 'disputed').length;
 
   const navLinks = [
     { name: 'Home', href: '/' },
@@ -84,15 +89,21 @@ export function Header() {
                 {/* Wallet Balance */}
                 <div className="hidden sm:flex items-center space-x-2 px-3 py-1 rounded-md bg-muted">
                   <Wallet className="h-4 w-4" />
-                  <span className="text-sm font-medium">₦2,500</span>
+                  <span className="text-sm font-medium">
+                    {profileLoading ? '₦—' : `₦${(wallet?.balance || 0).toLocaleString()}`}
+                  </span>
                 </div>
 
                 {/* Notifications */}
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="h-4 w-4" />
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-xs p-0 flex items-center justify-center">
-                    3
-                  </Badge>
+                <Button variant="ghost" size="icon" className="relative" asChild>
+                  <Link to="/notifications">
+                    <Bell className="h-4 w-4" />
+                    {pendingNotifs > 0 && (
+                      <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-xs p-0 flex items-center justify-center">
+                        {pendingNotifs}
+                      </Badge>
+                    )}
+                  </Link>
                 </Button>
 
                 {/* Profile Dropdown */}

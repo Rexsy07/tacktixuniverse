@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,13 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Target, Gamepad2, Users, Trophy } from "lucide-react";
+import { Target, Gamepad2, Users, Trophy, AlertCircle } from "lucide-react";
+import { TeamManagement } from "@/components/TeamManagement";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useGames } from "@/hooks/useGames";
 import { useCreateChallenge } from "@/hooks/useCreateChallenge";
 import { supabase } from "@/integrations/supabase/client";
+import { getAvailableFormats, getFormatDisplayName, isValidFormat, isTeamFormat } from "@/utils/gameFormats";
 
 // Import game covers for preview
 import codmCover from "@/assets/codm-cover.jpg";
@@ -36,7 +38,8 @@ const CreateChallenge = () => {
     stake: "",
     rules: "",
     map: "",
-    duration: ""
+    duration: "",
+    teamMembers: [] as string[]
   });
 
   // Game cover mapping
@@ -50,6 +53,22 @@ const CreateChallenge = () => {
 
   const selectedGame = games.find(game => game.id === challengeData.gameId);
   const selectedMode = gameModes.find(mode => mode.id === challengeData.modeId);
+
+  // Get available formats based on selected game and mode
+  const availableFormats = useMemo(() => {
+    if (!selectedGame || !selectedMode) {
+      return [];
+    }
+    return getAvailableFormats(selectedGame.name, selectedMode.name);
+  }, [selectedGame, selectedMode]);
+
+  // Check if current format is valid for the selected game/mode combination
+  const isCurrentFormatValid = useMemo(() => {
+    if (!challengeData.format || !selectedGame || !selectedMode) {
+      return true; // No format selected yet or missing data
+    }
+    return isValidFormat(selectedGame.name, selectedMode.name, challengeData.format);
+  }, [challengeData.format, selectedGame, selectedMode]);
 
   // Fetch game modes when game is selected
   useEffect(() => {
@@ -66,8 +85,7 @@ const CreateChallenge = () => {
       const { data, error } = await supabase
         .from('game_modes')
         .select('*')
-        .eq('game_id', gameId)
-        .eq('is_active', true);
+        .eq('game_id', gameId);
 
       if (error) throw error;
       setGameModes(data || []);
@@ -92,14 +110,17 @@ const CreateChallenge = () => {
       return;
     }
 
+    // Team-based matches: Team members are optional at creation
+    // Players can join open slots after the match is created
+
     if (!selectedMode) {
       toast.error("Please select a valid game mode");
       return;
     }
-
-    // Check if selected format is valid for this mode
-    if (!selectedMode.formats.includes(challengeData.format)) {
-      toast.error("Selected format is not available for this game mode");
+    
+    // Validate format is available for the selected game/mode combination
+    if (!isValidFormat(selectedGame?.name, selectedMode.name, challengeData.format)) {
+      toast.error("The selected format is not available for this game mode");
       return;
     }
     
@@ -148,7 +169,7 @@ const CreateChallenge = () => {
                           >
                             <div className="p-3 text-center">
                               <img 
-                                src={gameCovers[game.short_name] || "/placeholder.svg"} 
+                                src={gameCovers[game.short_name]}
                                 alt={game.name}
                                 className="w-full h-20 object-cover rounded mb-2"
                               />
@@ -190,40 +211,53 @@ const CreateChallenge = () => {
                   {challengeData.modeId && selectedMode && (
                     <div>
                       <Label>Match Format *</Label>
-                      <RadioGroup 
-                        value={challengeData.format} 
-                        onValueChange={(value) => setChallengeData(prev => ({ ...prev, format: value }))}
-                        className="flex flex-wrap gap-4 mt-2"
-                      >
-                        {selectedMode.formats.map((format: string) => (
-                          <div key={format} className="flex items-center space-x-2">
-                            <RadioGroupItem value={format} id={format} />
-                            <Label htmlFor={format} className="cursor-pointer">
-                              <Badge variant="outline">{format}</Badge>
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
+                      
+                      {!isCurrentFormatValid && challengeData.format && (
+                        <div className="mt-2 p-3 bg-warning/10 border border-warning/20 rounded-lg flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-warning" />
+                          <span className="text-sm text-warning">
+                            The format "{challengeData.format}" is not available for {selectedGame?.name} - {selectedMode.name}. Please select a valid format.
+                          </span>
+                        </div>
+                      )}
+                      
+                      {availableFormats.length > 0 ? (
+                        <RadioGroup 
+                          value={isCurrentFormatValid ? challengeData.format : ""} 
+                          onValueChange={(value) => setChallengeData(prev => ({ ...prev, format: value }))}
+                          className="flex flex-wrap gap-4 mt-2"
+                        >
+                          {availableFormats.map((format: string) => (
+                            <div key={format} className="flex items-center space-x-2">
+                              <RadioGroupItem value={format} id={format} />
+                              <Label htmlFor={format} className="cursor-pointer">
+                                <Badge variant="outline">{getFormatDisplayName(format)}</Badge>
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      ) : (
+                        <div className="mt-2 p-4 bg-muted/20 rounded-lg text-center">
+                          <p className="text-sm text-muted-foreground">
+                            No formats available for this game mode. Please select a different mode.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {/* Map Selection */}
-                  {challengeData.format && selectedMode && selectedMode.maps && selectedMode.maps.length > 0 && (
+                  {challengeData.format && (
                     <div>
                       <Label htmlFor="map">Map/Stadium (Optional)</Label>
-                      <Select value={challengeData.map} onValueChange={(value) => setChallengeData(prev => ({ ...prev, map: value }))}>
-                        <SelectTrigger className="mt-2">
-                          <SelectValue placeholder="Choose map (or leave random)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="random">Random Map</SelectItem>
-                          {selectedMode.maps.map((map: string) => (
-                            <SelectItem key={map} value={map}>
-                              {map}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Input
+                        id="map"
+                        type="text"
+                        placeholder="Enter map name (optional)"
+                        value={challengeData.map}
+                        onChange={(e) => setChallengeData(prev => ({ ...prev, map: e.target.value }))}
+                        className="mt-2"
+                      />
                     </div>
                   )}
 
@@ -273,6 +307,27 @@ const CreateChallenge = () => {
                     />
                   </div>
 
+                  {/* Team Management - Optional */}
+                  {challengeData.format && isTeamFormat(challengeData.format) && (
+                    <div>
+                      <div className="p-4 bg-muted/20 rounded-lg mb-4">
+                        <h4 className="font-semibold text-sm text-primary mb-2">Team Match Information</h4>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          This is a {challengeData.format} match. You can optionally invite teammates now, 
+                          or let other players join the open slots after you create the challenge.
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Users className="h-3 w-3" />
+                          <span>Players can join freely • No pre-formed teams required</span>
+                        </div>
+                      </div>
+                      <TeamManagement 
+                        format={challengeData.format}
+                        onTeamUpdate={(members) => setChallengeData(prev => ({ ...prev, teamMembers: members }))}
+                      />
+                    </div>
+                  )}
+
                   <Button 
                     type="submit" 
                     className="w-full bg-gradient-to-r from-primary to-accent glow-primary" 
@@ -300,7 +355,7 @@ const CreateChallenge = () => {
                   <div className="space-y-4">
                     <div className="text-center">
                       <img 
-                        src={gameCovers[selectedGame.short_name] || "/placeholder.svg"} 
+                        src={gameCovers[selectedGame.short_name]}
                         alt={selectedGame.name}
                         className="w-full h-32 object-cover rounded-lg mb-3"
                       />
@@ -319,7 +374,7 @@ const CreateChallenge = () => {
                         <div>
                           <span className="text-foreground/60 text-sm">Format:</span>
                           <div className="font-semibold">
-                            <Badge variant="secondary">{challengeData.format}</Badge>
+                            <Badge variant="secondary">{getFormatDisplayName(challengeData.format)}</Badge>
                           </div>
                         </div>
                       )}

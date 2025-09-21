@@ -1,49 +1,41 @@
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Clock, Users, Zap, Filter } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Users, Filter, Search } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useLiveMatches } from "@/hooks/useMatches";
 import { useAuth } from "@/hooks/useAuth";
+import { useGames } from "@/hooks/useGames";
+import MatchCard from "@/components/MatchCard";
 
 const LiveMatchFeed = () => {
   const [filter, setFilter] = useState('all');
-  const navigate = useNavigate();
   const { liveMatches, loading } = useLiveMatches();
+  const { games, loading: gamesLoading } = useGames();
   const { user } = useAuth();
 
-  // Transform live matches to expected format
-  const matches = liveMatches.map(match => ({
+  // Transform live matches to expected format with additional data
+  const allMatches = liveMatches.map(match => ({
     id: match.id,
     game: match.games?.short_name || "Game",
     mode: match.game_modes?.name || "Mode",
     stake: `₦${match.stake_amount?.toLocaleString()}`,
+    format: match.format || '1v1',
     player1: match.creator_profile?.username || "Player1",
     player2: match.opponent_profile?.username,
     status: match.status === 'awaiting_opponent' ? 'awaiting' as const : 
             match.status === 'in_progress' ? 'in-progress' as const : 'completed' as const,
     timeLeft: match.status === 'awaiting_opponent' ? undefined : 
-              match.status === 'in_progress' ? 'LIVE' : undefined
+              match.status === 'in_progress' ? 'LIVE' : undefined,
+    creator_id: match.creator_id,
+    opponent_id: match.opponent_id,
+    winner_id: match.winner_id
   }));
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'in-progress': return 'bg-destructive';
-      case 'awaiting': return 'bg-primary';
-      case 'completed': return 'bg-success';
-      default: return 'bg-muted';
-    }
-  };
+  // Filter matches based on selected game
+  const matches = filter === 'all' 
+    ? allMatches 
+    : allMatches.filter(match => match.game === filter);
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'in-progress': return 'Live';
-      case 'awaiting': return 'Open';
-      case 'completed': return 'Finished';
-      default: return status;
-    }
-  };
 
   return (
     <section className="py-16 bg-gradient-to-b from-background to-background/50">
@@ -60,19 +52,45 @@ const LiveMatchFeed = () => {
           </p>
         </div>
 
-        {/* Filter Buttons */}
-        <div className="flex flex-wrap justify-center gap-2 mb-8">
-          {['all', 'CODM', 'PUBG', 'Free Fire', 'EA FC', 'PES'].map((gameFilter) => (
+        {/* Game Selection Filter */}
+        <div className="mb-8">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Filter className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold">Select Game to Watch Live</h3>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
             <Button
-              key={gameFilter}
-              variant={filter === gameFilter ? "default" : "outline"}
+              key="all"
+              variant={filter === 'all' ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilter(gameFilter)}
+              onClick={() => setFilter('all')}
               className="glass-button"
             >
-              {gameFilter === 'all' ? 'All Games' : gameFilter}
+              <Search className="mr-2 h-4 w-4" />
+              All Games
             </Button>
-          ))}
+            {!gamesLoading && games.map((game) => (
+              <Button
+                key={game.short_name}
+                variant={filter === game.short_name ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilter(game.short_name)}
+                className="glass-button"
+              >
+                {game.short_name}
+                {game.active_matches_count !== undefined && (
+                  <span className="ml-2 px-2 py-1 text-xs bg-primary/20 rounded-full">
+                    {game.active_matches_count}
+                  </span>
+                )}
+              </Button>
+            ))}
+          </div>
+          {filter !== 'all' && (
+            <p className="text-center text-sm text-foreground/70 mt-2">
+              Showing live matches for <span className="font-semibold text-primary">{filter}</span>
+            </p>
+          )}
         </div>
 
         {/* Live Matches Grid */}
@@ -93,88 +111,11 @@ const LiveMatchFeed = () => {
             </div>
           ) : (
             matches.map((match) => (
-              <Card key={match.id} className="glass-card hover:glow-primary transition-all duration-300 game-card">
-                <div className="p-6">
-                  {/* Match Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="secondary" className="font-semibold">
-                        {match.game}
-                      </Badge>
-                      <Badge className={`${getStatusColor(match.status)} text-white`}>
-                        {getStatusText(match.status)}
-                      </Badge>
-                    </div>
-                    <div className="text-lg font-bold text-primary">
-                      {match.stake}
-                    </div>
-                  </div>
-
-                  {/* Match Details */}
-                  <div className="mb-4">
-                    <p className="text-sm text-foreground/70 mb-2">{match.mode}</p>
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{match.player1}</span>
-                        {match.status === 'in-progress' && (
-                          <span className="text-xs text-destructive animate-pulse">🔴 LIVE</span>
-                        )}
-                      </div>
-                      {match.player2 ? (
-                        <div className="text-sm font-medium text-accent">
-                          vs {match.player2}
-                        </div>
-                      ) : (
-                        <div className="text-sm text-foreground/50">
-                          Awaiting opponent...
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Match Status */}
-                  {match.timeLeft && (
-                    <div className="flex items-center space-x-2 mb-4">
-                      <Clock className="h-4 w-4 text-foreground/50" />
-                      <span className="text-sm text-foreground/70">
-                        {match.status === 'in-progress' ? match.timeLeft : `Time remaining: ${match.timeLeft}`}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Action Button */}
-                  <Button 
-                    className="w-full"
-                    variant={match.status === 'awaiting' ? 'default' : 'outline'}
-                    disabled={match.status === 'completed'}
-                    onClick={() => navigate(`/matches/${match.id}`)}
-                  >
-                    {match.status === 'awaiting' && 'Join Match'}
-                    {match.status === 'in-progress' && 'Watch Live'}
-                    {match.status === 'completed' && 'View Results'}
-                  </Button>
-                </div>
-              </Card>
+              <MatchCard key={match.id} match={match} />
             ))
           )}
         </div>
 
-        {/* Ticker/Scrolling Feed */}
-        <div className="glass-card p-4 overflow-hidden">
-          <div className="flex items-center space-x-4 mb-2">
-            <Zap className="h-5 w-5 text-primary" />
-            <span className="font-semibold">Live Updates</span>
-          </div>
-          <div className="relative">
-            <div className="animate-marquee whitespace-nowrap">
-              <span className="mx-8">🔥 ₦500 CODM Search & Destroy - NaijaSharpShooter vs LagosWarrior (LIVE)</span>
-              <span className="mx-8">⚡ ₦2,000 PUBG Battle Royale Kill Race - Open for challengers!</span>
-              <span className="mx-8">🏆 ₦1,000 PES Online Match - Messi9ja vs CR7Lagos (LIVE)</span>
-              <span className="mx-8">💫 ₦800 Free Fire Clash Squad - FireKing needs opponent</span>
-              <span className="mx-8">⚽ ₦1,500 EA FC Head-to-Head - Match completed</span>
-            </div>
-          </div>
-        </div>
 
         {/* CTA */}
         <div className="text-center mt-8">

@@ -17,10 +17,22 @@ export function useTournaments() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Skip tournament loading if feature is disabled
+    if (import.meta.env.VITE_DISABLE_TOURNAMENTS === 'true') {
+      setLoading(false);
+      return;
+    }
     fetchTournaments();
   }, [user]);
 
   const fetchTournaments = async () => {
+    // Skip if tournaments are disabled
+    if (import.meta.env.VITE_DISABLE_TOURNAMENTS === 'true') {
+      setTournaments([]);
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       
@@ -33,26 +45,46 @@ export function useTournaments() {
         `)
         .order('start_date', { ascending: true });
 
-      if (tournamentsError) throw tournamentsError;
+      if (tournamentsError) {
+        // Handle missing tournaments table gracefully
+        if (tournamentsError.code === 'PGRST205') {
+          console.log('Tournaments table not found, tournaments feature not yet implemented');
+          setTournaments([]);
+          setError(null);
+          return;
+        }
+        throw tournamentsError;
+      }
 
       // Check registration status for each tournament if user is logged in
       let tournamentsWithRegistration = tournamentsData || [];
       
       if (user && tournamentsData) {
-        tournamentsWithRegistration = await Promise.all(
-          tournamentsData.map(async (tournament) => {
-            const { count } = await supabase
-              .from('tournament_participants')
-              .select('*', { count: 'exact', head: true })
-              .eq('tournament_id', tournament.id)
-              .eq('user_id', user.id);
+        try {
+          tournamentsWithRegistration = await Promise.all(
+            tournamentsData.map(async (tournament) => {
+              const { count } = await supabase
+                .from('tournament_participants')
+                .select('*', { count: 'exact', head: true })
+                .eq('tournament_id', tournament.id)
+                .eq('user_id', user.id);
 
-            return {
-              ...tournament,
-              is_registered: (count || 0) > 0
-            };
-          })
-        );
+              return {
+                ...tournament,
+                is_registered: (count || 0) > 0
+              };
+            })
+          );
+        } catch (participantError: any) {
+          // Handle missing tournament_participants table
+          if (participantError.code === 'PGRST205') {
+            console.log('Tournament participants table not found, skipping registration status');
+            // Return tournaments without registration status
+            tournamentsWithRegistration = tournamentsData;
+          } else {
+            throw participantError;
+          }
+        }
       }
 
       setTournaments(tournamentsWithRegistration);
@@ -106,6 +138,11 @@ export function useUserTournaments() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Skip tournament loading if feature is disabled
+    if (import.meta.env.VITE_DISABLE_TOURNAMENTS === 'true') {
+      setLoading(false);
+      return;
+    }
     if (user) {
       fetchUserTournaments();
     }
@@ -113,6 +150,15 @@ export function useUserTournaments() {
 
   const fetchUserTournaments = async () => {
     if (!user) return;
+    
+    // Skip if tournaments are disabled
+    if (import.meta.env.VITE_DISABLE_TOURNAMENTS === 'true') {
+      setMyTournaments([]);
+      setCompletedTournaments([]);
+      setAvailableTournaments([]);
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -129,7 +175,17 @@ export function useUserTournaments() {
         `)
         .eq('user_id', user.id);
 
-      if (participantError) throw participantError;
+      if (participantError) {
+        // Handle missing tournament_participants table gracefully
+        if (participantError.code === 'PGRST205') {
+          console.log('Tournament participants table not found, tournaments feature not yet implemented');
+          setMyTournaments([]);
+          setCompletedTournaments([]);
+          setAvailableTournaments([]);
+          return;
+        }
+        throw participantError;
+      }
 
       const registeredTournaments = participantData?.map(p => p.tournaments).filter(Boolean) || [];
 
@@ -161,13 +217,27 @@ export function useUserTournaments() {
 
       const { data: availableData, error: availableError } = await availableQuery;
       
-      if (availableError) throw availableError;
+      if (availableError) {
+        // Handle missing tournaments table gracefully
+        if (availableError.code === 'PGRST205') {
+          console.log('Tournaments table not found, tournaments feature not yet implemented');
+          setMyTournaments(ongoing as Tournament[]);
+          setCompletedTournaments(completed as Tournament[]);
+          setAvailableTournaments([]);
+          return;
+        }
+        throw availableError;
+      }
 
       setMyTournaments(ongoing as Tournament[]);
       setCompletedTournaments(completed as Tournament[]);
       setAvailableTournaments(availableData || []);
     } catch (err: any) {
       console.error('Error fetching user tournaments:', err);
+      // Set empty arrays on error to prevent UI crashes
+      setMyTournaments([]);
+      setCompletedTournaments([]);
+      setAvailableTournaments([]);
     } finally {
       setLoading(false);
     }

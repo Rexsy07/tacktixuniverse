@@ -50,53 +50,16 @@ const GameDetail = () => {
     try {
       setLoading(true);
 
-      // Fetch game data
+      // Fetch game data (support short_name, id, or name fragment)
+      const normalized = (slug as string).replace(/-/g, ' ');
       const { data: game, error: gameError } = await supabase
         .from('games')
         .select('*')
-        .ilike('short_name', `%${slug}%`)
-        .single();
+        .or(`short_name.eq.${slug},id.eq.${slug},name.ilike.*${normalized}*`)
+        .maybeSingle();
 
       if (gameError || !game) {
-        console.error('Game not found:', gameError);
-        // Try alternative lookup methods
-        const { data: gameByName, error: nameError } = await supabase
-          .from('games')
-          .select('*')
-          .ilike('name', `%${slug?.replace('-', ' ')}%`)
-          .single();
-        
-        if (nameError || !gameByName) {
-          console.error('Game not found by name either:', nameError);
-          return;
-        }
-        
-        // Fetch active matches count
-        const { count: activeMatches } = await supabase
-          .from('matches')
-          .select('*', { count: 'exact', head: true })
-          .eq('game_id', gameByName.id)
-          .eq('status', 'awaiting_opponent')
-          .is('opponent_id', null);
-        
-        // Fetch online players count
-        const { count: onlinePlayers } = await supabase
-          .from('user_sessions')
-          .select('*', { count: 'exact', head: true })
-          .eq('game_id', gameByName.id)
-          .gt('last_active', new Date(Date.now() - 15 * 60 * 1000).toISOString());
-        
-        // Fetch average stake
-        const { data: avgStakeData } = await supabase
-          .rpc('get_average_stake_for_game', { game_id: gameByName.id });
-        
-        setGameData({
-          ...gameByName,
-          cover: gameCovers[slug as string] || codmCover,
-          playersOnline: onlinePlayers || 0,
-          activeMatches: activeMatches || 0,
-          avgStake: avgStakeData ? `₦${avgStakeData}` : `₦${gameByName.min_stake}`
-        });
+        console.error('Game not found with slug or name:', { slug, error: gameError });
         return;
       }
 
@@ -118,16 +81,25 @@ const GameDetail = () => {
         .eq('status', 'awaiting_opponent')
         .is('opponent_id', null);
         
-      // Fetch online players count
+      // Calculate online players from recent matches (simplified)
       const { count: onlinePlayers } = await supabase
-        .from('user_sessions')
+        .from('matches')
         .select('*', { count: 'exact', head: true })
         .eq('game_id', game.id)
-        .gt('last_active', new Date(Date.now() - 15 * 60 * 1000).toISOString());
+        .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString()); // Last hour
         
-      // Fetch average stake
-      const { data: avgStakeData } = await supabase
-        .rpc('get_average_stake_for_game', { game_id: game.id });
+      // Calculate average stake from matches
+      const { data: stakeData } = await supabase
+        .from('matches')
+        .select('stake_amount')
+        .eq('game_id', game.id)
+        .not('stake_amount', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      const avgStake = stakeData && stakeData.length > 0 
+        ? stakeData.reduce((sum, match) => sum + (match.stake_amount || 0), 0) / stakeData.length
+        : 100;
       
       setGameData({
         ...game,
@@ -135,7 +107,7 @@ const GameDetail = () => {
         cover: gameCovers[slug as string] || codmCover,
         playersOnline: onlinePlayers || 0,
         activeMatches: activeMatches || 0,
-        avgStake: avgStakeData ? `₦${avgStakeData}` : `₦${game.min_stake}`
+        avgStake: `₦${Math.round(avgStake)}`
       });
 
       setGameModes(modes || []);

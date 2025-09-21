@@ -12,10 +12,45 @@ import {
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import Footer from "@/components/Footer";
+import { toast } from "sonner";
 
 const Support = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [messageForm, setMessageForm] = useState({
+    name: "",
+    email: "",
+    subject: "",
+    message: ""
+  });
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Basic validation
+    if (!messageForm.name || !messageForm.email || !messageForm.subject || !messageForm.message) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    // Simulate sending message
+    toast.success("Message sent successfully! We'll get back to you within 24 hours.");
+    
+    // Reset form
+    setMessageForm({
+      name: "",
+      email: "",
+      subject: "",
+      message: ""
+    });
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setMessageForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   const contactMethods = [
     {
@@ -305,21 +340,40 @@ const Support = () => {
                     </p>
                   </div>
 
-                  <form className="space-y-6">
+                  <form className="space-y-6" onSubmit={handleSendMessage}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium mb-2 block">Your Name</label>
-                        <Input placeholder="Enter your full name" className="glass" />
+                        <Input 
+                          placeholder="Enter your full name" 
+                          className="glass" 
+                          value={messageForm.name}
+                          onChange={(e) => handleInputChange('name', e.target.value)}
+                          required
+                        />
                       </div>
                       <div>
                         <label className="text-sm font-medium mb-2 block">Email Address</label>
-                        <Input type="email" placeholder="your@email.com" className="glass" />
+                        <Input 
+                          type="email" 
+                          placeholder="your@email.com" 
+                          className="glass" 
+                          value={messageForm.email}
+                          onChange={(e) => handleInputChange('email', e.target.value)}
+                          required
+                        />
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium mb-2 block">TacktixEdge Username</label>
-                      <Input placeholder="Your TacktixEdge username (if applicable)" className="glass" />
+                      <label className="text-sm font-medium mb-2 block">Subject</label>
+                      <Input 
+                        placeholder="Brief description of your issue" 
+                        className="glass" 
+                        value={messageForm.subject}
+                        onChange={(e) => handleInputChange('subject', e.target.value)}
+                        required
+                      />
                     </div>
 
                     <div>
@@ -341,10 +395,13 @@ const Support = () => {
                         placeholder="Describe your issue in detail. Include transaction IDs, match details, or any other relevant information..."
                         rows={6}
                         className="glass resize-none"
+                        value={messageForm.message}
+                        onChange={(e) => handleInputChange('message', e.target.value)}
+                        required
                       />
                     </div>
 
-                    <Button className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary">
+                    <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary">
                       <Mail className="mr-2 h-4 w-4" />
                       Send Message
                     </Button>

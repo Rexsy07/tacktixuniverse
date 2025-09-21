@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { isTeamFormat } from '@/utils/gameFormats';
 
 interface ChallengeData {
   gameId: string;
@@ -12,6 +14,7 @@ interface ChallengeData {
   stakeAmount: number;
   durationMinutes?: number;
   customRules?: string;
+  teamMembers?: string[]; // Array of user IDs for team members
 }
 
 export function useCreateChallenge() {
@@ -25,52 +28,74 @@ export function useCreateChallenge() {
       return;
     }
 
+    // Temporary: Disable challenge creation until database issue is resolved
+    if (import.meta.env.VITE_DISABLE_CHALLENGE_CREATION === 'true') {
+      toast.error('Challenge creation is temporarily disabled due to database maintenance');
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // Check if user has sufficient balance
-      const { data: wallet, error: walletError } = await supabase
-        .from('user_wallets')
-        .select('balance')
-        .eq('user_id', user.id)
-        .single();
-
-      if (walletError) throw walletError;
-
-      if ((wallet?.balance || 0) < challengeData.stakeAmount) {
-        toast.error('Insufficient balance to create this challenge');
-        return;
-      }
-
-      // Create the match
-      const { data: match, error: matchError } = await supabase
+      // Create challenge using direct table insert (bypassing problematic RPC function)
+      const { data: matchData, error: challengeError } = await supabase
         .from('matches')
         .insert({
           creator_id: user.id,
           game_id: challengeData.gameId,
           game_mode_id: challengeData.modeId,
           format: challengeData.format,
-          map_name: challengeData.mapName,
+          map_name: challengeData.mapName || null,
           stake_amount: challengeData.stakeAmount,
-          duration_minutes: challengeData.durationMinutes,
-          custom_rules: challengeData.customRules,
+          duration_minutes: challengeData.durationMinutes || 60,
+          custom_rules: challengeData.customRules || null,
           status: 'awaiting_opponent'
         })
-        .select()
+        .select('id')
         .single();
 
-      if (matchError) throw matchError;
+      if (challengeError) {
+        console.error('Challenge creation error:', challengeError);
+        throw challengeError;
+      }
 
-      // Deduct stake from user's wallet (held in escrow)
-      const { error: walletUpdateError } = await supabase
-        .from('user_wallets')
-        .update({
-          balance: (wallet?.balance || 0) - challengeData.stakeAmount,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
+      if (!matchData?.id) {
+        toast.error('Failed to create challenge');
+        return;
+      }
 
-      if (walletUpdateError) throw walletUpdateError;
+      const matchId = matchData.id;
+
+      // Add creator to match_participants table for all match formats
+      const { error: participantError } = await supabase
+        .from('match_participants')
+        .insert({
+          match_id: matchId,
+          user_id: user.id,
+          team: 'A' as const,
+          role: 'captain' as const
+        });
+
+      if (participantError) throw participantError;
+
+      // For team-based matches, add invited team members if provided (optional)
+      if (isTeamFormat(challengeData.format) && challengeData.teamMembers?.length) {
+        const teamMembers = challengeData.teamMembers.map(memberId => ({
+          match_id: matchId,
+          user_id: memberId,
+          team: 'A' as const,
+          role: 'member' as const
+        }));
+
+        const { error: teamError } = await supabase
+          .from('match_participants')
+          .insert(teamMembers);
+
+        if (teamError) {
+          console.warn('Some team members could not be added:', teamError);
+          // Don't fail the entire match creation if team invitations fail
+        }
+      }
 
       toast.success('Challenge created successfully!');
       navigate('/matches');

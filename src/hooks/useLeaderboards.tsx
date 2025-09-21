@@ -32,18 +32,17 @@ export function useLeaderboards() {
     try {
       setLoading(true);
 
-      // Fetch global leaderboard - need to join manually due to foreign key constraints
-      const { data: statsData, error: statsError } = await supabase
-        .from('user_stats')
-        .select('*')
-        .gt('total_matches', 0)
-        .order('total_earnings', { ascending: false })
+      // Since we don't have user_stats table, compute leaderboard from matches and wallets
+      const { data: walletsData, error: walletsError } = await supabase
+        .from('user_wallets')
+        .select('user_id, balance')
+        .order('balance', { ascending: false })
         .limit(50);
 
-      if (statsError) throw statsError;
+      if (walletsError) throw walletsError;
 
       // Fetch profiles for these users
-      const userIds = statsData?.map(s => s.user_id) || [];
+      const userIds = walletsData?.map(w => w.user_id) || [];
       
       if (userIds.length === 0) {
         setGlobalLeaderboard([]);
@@ -58,30 +57,47 @@ export function useLeaderboards() {
 
       if (profilesError) throw profilesError;
 
-      const processedGlobal = statsData?.map((entry, index) => {
-        const profile = profilesData?.find(p => p.user_id === entry.user_id);
+      // Compute stats for each user from matches
+      const processedGlobal = await Promise.all(walletsData?.map(async (wallet, index) => {
+        const profile = profilesData?.find(p => p.user_id === wallet.user_id);
+        
+        // Get match stats for this user
+        const { count: totalMatches } = await supabase
+          .from('matches')
+          .select('*', { count: 'exact', head: true })
+          .or(`creator_id.eq.${wallet.user_id},opponent_id.eq.${wallet.user_id}`);
+
+        const { count: totalWins } = await supabase
+          .from('matches')
+          .select('*', { count: 'exact', head: true })
+          .eq('winner_id', wallet.user_id);
+
+        const total_matches = totalMatches || 0;
+        const total_wins = totalWins || 0;
+        const total_losses = Math.max(total_matches - total_wins, 0);
+        
         return {
-          user_id: entry.user_id,
+          user_id: wallet.user_id,
           username: profile?.username || 'Anonymous',
           full_name: profile?.full_name || 'Unknown Player',
-          total_matches: entry.total_matches,
-          total_wins: entry.total_wins,
-          total_losses: entry.total_losses,
-          win_rate: entry.total_matches > 0 ? (entry.total_wins / entry.total_matches) * 100 : 0,
-          total_earnings: entry.total_earnings,
-          current_streak: entry.current_streak,
-          longest_win_streak: entry.longest_win_streak,
+          total_matches,
+          total_wins,
+          total_losses,
+          win_rate: total_matches > 0 ? (total_wins / total_matches) * 100 : 0,
+          total_earnings: wallet.balance || 0,
+          current_streak: 0, // Could be computed from recent matches
+          longest_win_streak: 0, // Could be computed from match history
           rank: index + 1,
           badge: index < 3 ? ['Champion', 'Runner-up', 'Third Place'][index] : undefined
         };
-      }) || [];
+      }) || []);
 
       setGlobalLeaderboard(processedGlobal);
 
       // Fetch games for game-specific leaderboards
       const { data: games, error: gamesError } = await supabase
         .from('games')
-        .select('id, name, short_name')
+        .select('id, name')
         .eq('is_active', true);
 
       if (gamesError) throw gamesError;

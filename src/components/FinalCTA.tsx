@@ -2,8 +2,25 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Zap, Users, ArrowRight, Gamepad2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const FinalCTA = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handleStartPlayingNow = () => {
+    if (!user) {
+      navigate('/signup');
+      return;
+    }
+    navigate('/games');
+  };
+
+  const handleViewGames = () => {
+    navigate('/games');
+  };
+
   const ctaFeatures = [
     {
       icon: Zap,
@@ -71,6 +88,7 @@ const FinalCTA = () => {
               <Button
                 size="lg"
                 className="px-12 py-4 text-lg bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary pulse-glow transition-all duration-300 group"
+                onClick={handleStartPlayingNow}
               >
                 <Gamepad2 className="mr-3 h-6 w-6 group-hover:animate-bounce" />
                 Start Playing Now
@@ -81,6 +99,7 @@ const FinalCTA = () => {
                 size="lg" 
                 variant="outline"
                 className="px-12 py-4 text-lg glass-button border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                onClick={handleViewGames}
               >
                 <Trophy className="mr-3 h-6 w-6" />
                 View Games

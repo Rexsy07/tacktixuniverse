@@ -53,7 +53,13 @@ export function useMatches() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      // Improved cleanup with error handling
+      try {
+        channel.unsubscribe();
+        supabase.removeChannel(channel);
+      } catch (error) {
+        console.log('Error during channel cleanup:', error);
+      }
     };
   }, [user, realtimeEnabled]);
 
@@ -144,7 +150,13 @@ export function useOpenChallenges(gameFilter?: string) {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      // Improved cleanup with error handling
+      try {
+        channel.unsubscribe();
+        supabase.removeChannel(channel);
+      } catch (error) {
+        console.log('Error during channel cleanup:', error);
+      }
     };
   }, [gameFilter, realtimeEnabled]);
 
@@ -266,16 +278,19 @@ export function useOpenChallenges(gameFilter?: string) {
 
 export function useLiveMatches() {
   const [liveMatches, setLiveMatches] = useState<Match[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Set to false to avoid loading state
   const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
+  const liveMatchesDisabled = import.meta.env.VITE_DISABLE_LIVE_MATCHES === 'true';
 
   useEffect(() => {
-    fetchLiveMatches();
-  }, []);
+    if (!liveMatchesDisabled) {
+      fetchLiveMatches();
+    }
+  }, [liveMatchesDisabled]);
 
   // Realtime updates for live/awaiting matches feed (guarded by env)
   useEffect(() => {
-    if (!realtimeEnabled) return;
+    if (!realtimeEnabled || liveMatchesDisabled) return;
     const channel = supabase
       .channel('matches-live-feed')
       .on(
@@ -288,53 +303,109 @@ export function useLiveMatches() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [realtimeEnabled]);
+  }, [realtimeEnabled, liveMatchesDisabled]);
 
   // Polling fallback for live matches (every 8s)
   useEffect(() => {
+    if (liveMatchesDisabled) return;
     const id = setInterval(fetchLiveMatches, 8000);
     return () => clearInterval(id);
-  }, []);
+  }, [liveMatchesDisabled]);
 
   const fetchLiveMatches = async () => {
     try {
       setLoading(true);
       
+      // Try the simple query first without joins to avoid RLS issues
       const { data, error } = await supabase
         .from('matches')
-        .select(`
-          *,
-          games(*),
-          game_modes(*)
-        `)
+        .select('*')
         .in('status', ['awaiting_opponent', 'in_progress'])
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching matches:', error);
+        throw error;
+      }
 
-      // Fetch profiles for live matches
-      const creatorIds = [...new Set(data?.map(m => m.creator_id) || [])];
-      const opponentIds = [...new Set(data?.map(m => m.opponent_id).filter(Boolean) || [])];
+      if (!data || data.length === 0) {
+        setLiveMatches([]);
+        return;
+      }
+
+      // Fetch related data separately to avoid complex join issues
+      const gameIds = [...new Set(data.map(m => m.game_id).filter(Boolean))];
+      const gameModeIds = [...new Set(data.map(m => m.game_mode_id).filter(Boolean))];
+      const creatorIds = [...new Set(data.map(m => m.creator_id).filter(Boolean))];
+      const opponentIds = [...new Set(data.map(m => m.opponent_id).filter(Boolean))];
       const allUserIds = [...new Set([...creatorIds, ...opponentIds])];
 
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('user_id', allUserIds);
+      // Fetch games data if we have game IDs
+      let games = [];
+      if (gameIds.length > 0) {
+        try {
+          const { data: gamesData, error: gamesError } = await supabase
+            .from('games')
+            .select('*')
+            .in('id', gameIds);
+          
+          if (!gamesError) {
+            games = gamesData || [];
+          }
+        } catch (gameErr) {
+          console.warn('Could not fetch games data:', gameErr);
+        }
+      }
 
-      if (profilesError) throw profilesError;
+      // Fetch game modes data if we have game mode IDs
+      let gameModes = [];
+      if (gameModeIds.length > 0) {
+        try {
+          const { data: gameModesData, error: gameModesError } = await supabase
+            .from('game_modes')
+            .select('*')
+            .in('id', gameModeIds);
+          
+          if (!gameModesError) {
+            gameModes = gameModesData || [];
+          }
+        } catch (gameModeErr) {
+          console.warn('Could not fetch game modes data:', gameModeErr);
+        }
+      }
 
-      // Merge profiles with matches
-      const matchesWithProfiles = data?.map(match => ({
+      // Fetch profiles if we have user IDs
+      let profiles = [];
+      if (allUserIds.length > 0) {
+        try {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('user_id', allUserIds);
+          
+          if (!profilesError) {
+            profiles = profilesData || [];
+          }
+        } catch (profileErr) {
+          console.warn('Could not fetch profiles data:', profileErr);
+        }
+      }
+
+      // Merge all data together (map relations to single objects)
+      const matchesWithProfiles = data.map(match => ({
         ...match,
-        creator_profile: profiles?.find(p => p.user_id === match.creator_id) || null,
-        opponent_profile: match.opponent_id ? profiles?.find(p => p.user_id === match.opponent_id) || null : null
-      })) || [];
+        games: games.find(g => g.id === match.game_id) || null,
+        game_modes: gameModes.find(gm => gm.id === match.game_mode_id) || null,
+        creator_profile: profiles.find(p => p.user_id === match.creator_id) || null,
+        opponent_profile: match.opponent_id ? profiles.find(p => p.user_id === match.opponent_id) || null : null
+      }));
 
       setLiveMatches(matchesWithProfiles);
     } catch (err: any) {
       console.error('Error fetching live matches:', err);
+      // Set empty array on error to prevent app crash
+      setLiveMatches([]);
     } finally {
       setLoading(false);
     }

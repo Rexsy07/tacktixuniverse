@@ -5,6 +5,7 @@ import { Database } from '@/integrations/supabase/types';
 type Game = Database['public']['Tables']['games']['Row'] & {
   game_modes?: Database['public']['Tables']['game_modes']['Row'][];
   active_matches_count?: number;
+  players_online?: number;
 };
 
 export function useGames() {
@@ -35,16 +36,24 @@ export function useGames() {
       // Fetch active matches count for each game
       const gamesWithStats = await Promise.all(
         gamesData.map(async (game) => {
-          const { count } = await supabase
-            .from('matches')
-            .select('*', { count: 'exact', head: true })
-            .eq('game_id', game.id)
-            .eq('status', 'awaiting_opponent')
-            .is('opponent_id', null);
+          const [{ count: activeCount }, { count: recentCount }] = await Promise.all([
+            supabase
+              .from('matches')
+              .select('*', { count: 'exact', head: true })
+              .eq('game_id', game.id)
+              .eq('status', 'awaiting_opponent')
+              .is('opponent_id', null),
+            supabase
+              .from('matches')
+              .select('*', { count: 'exact', head: true })
+              .eq('game_id', game.id)
+              .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
+          ]);
 
           return {
             ...game,
-            active_matches_count: count || 0
+            active_matches_count: activeCount || 0,
+            players_online: recentCount || 0,
           };
         })
       );

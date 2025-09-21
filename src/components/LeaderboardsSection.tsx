@@ -4,121 +4,52 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Trophy, Medal, Award, TrendingUp, Users, Crown } from "lucide-react";
-
-interface Player {
-  rank: number;
-  username: string;
-  earnings: string;
-  matches: number;
-  winRate: number;
-  game?: string;
-  badge?: string;
-}
+import { useLeaderboards } from "@/hooks/useLeaderboards";
+import { useGames } from "@/hooks/useGames";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const LeaderboardsSection = () => {
   const [activeTab, setActiveTab] = useState('global');
+  const { globalLeaderboard, gameLeaderboards, loading, error } = useLeaderboards();
+  const { games } = useGames();
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const globalLeaders: Player[] = [
-    {
-      rank: 1,
-      username: "NaijaKing",
-      earnings: "₦847,500",
-      matches: 156,
-      winRate: 89,
-      badge: "🏆 Champion"
-    },
-    {
-      rank: 2,
-      username: "LagosLegend",
-      earnings: "₦623,200",
-      matches: 134,
-      winRate: 85,
-      badge: "💎 Elite"
-    },
-    {
-      rank: 3,
-      username: "AbujaMaster",
-      earnings: "₦578,900",
-      matches: 142,
-      winRate: 82,
-      badge: "⚡ Pro"
-    },
-    {
-      rank: 4,
-      username: "KanoChampion",
-      earnings: "₦445,600",
-      matches: 98,
-      winRate: 87,
-    },
-    {
-      rank: 5,
-      username: "IbadanAce",
-      earnings: "₦398,750",
-      matches: 89,
-      winRate: 79,
-    }
-  ];
+  const handleViewFullLeaderboard = () => {
+    navigate('/leaderboards');
+  };
 
-  const codmLeaders: Player[] = [
-    {
-      rank: 1,
-      username: "SniperKing9ja",
-      earnings: "₦324,500",
-      matches: 78,
-      winRate: 92,
-      game: "CODM"
-    },
-    {
-      rank: 2,
-      username: "TacticalMaster",
-      earnings: "₦298,750",
-      matches: 65,
-      winRate: 88,
-      game: "CODM"
-    },
-    {
-      rank: 3,
-      username: "RushWarrior",
-      earnings: "₦267,300",
-      matches: 89,
-      winRate: 84,
-      game: "CODM"
+  const handleStartCompeting = () => {
+    if (!user) {
+      navigate('/signup');
+      return;
     }
-  ];
-
-  const pubgLeaders: Player[] = [
-    {
-      rank: 1,
-      username: "ChickenDinner",
-      earnings: "₦445,200",
-      matches: 56,
-      winRate: 86,
-      game: "PUBG"
-    },
-    {
-      rank: 2,
-      username: "SquadLeader",
-      earnings: "₦378,600",
-      matches: 48,
-      winRate: 83,
-      game: "PUBG"
-    },
-    {
-      rank: 3,
-      username: "BattleRoyale",
-      earnings: "₦334,900",
-      matches: 67,
-      winRate: 79,
-      game: "PUBG"
-    }
-  ];
+    navigate('/games');
+  };
 
   const getLeaderboardData = () => {
-    switch (activeTab) {
-      case 'codm': return codmLeaders;
-      case 'pubg': return pubgLeaders;
-      default: return globalLeaders;
+    if (activeTab === 'global') {
+      return globalLeaderboard.slice(0, 5).map((player, index) => ({
+        rank: index + 1,
+        username: player.username,
+        earnings: `₦${player.total_earnings.toLocaleString()}`,
+        matches: player.total_matches,
+        winRate: Math.round(player.win_rate),
+        badge: index < 3 ? ['🏆 Champion', '💎 Elite', '⚡ Pro'][index] : undefined
+      }));
     }
+    
+    // For game-specific leaderboards, use the global data for now
+    // In a real implementation, you'd have game-specific data
+    return globalLeaderboard.slice(0, 3).map((player, index) => ({
+      rank: index + 1,
+      username: player.username,
+      earnings: `₦${player.total_earnings.toLocaleString()}`,
+      matches: player.total_matches,
+      winRate: Math.round(player.win_rate),
+      game: activeTab.toUpperCase()
+    }));
   };
 
   const getRankIcon = (rank: number) => {
@@ -132,8 +63,11 @@ const LeaderboardsSection = () => {
 
   const tabs = [
     { id: 'global', name: 'Global', icon: Trophy },
-    { id: 'codm', name: 'CODM', icon: TrendingUp },
-    { id: 'pubg', name: 'PUBG', icon: Users },
+    ...(games?.slice(0, 2).map(game => ({
+      id: game.id,
+      name: game.short_name,
+      icon: TrendingUp
+    })) || [])
   ];
 
   return (
@@ -191,57 +125,72 @@ const LeaderboardsSection = () => {
                 </div>
 
                 <div className="space-y-4">
-                  {getLeaderboardData().map((player) => (
-                    <div 
-                      key={player.rank}
-                      className={`flex items-center justify-between p-4 rounded-lg transition-all duration-300 hover:bg-muted/20 ${
-                        player.rank <= 3 ? 'glass glow-primary' : 'bg-muted/10'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-4">
-                        {/* Rank */}
-                        <div className="flex items-center justify-center w-10 h-10">
-                          {getRankIcon(player.rank)}
-                        </div>
+                  {loading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                      <p className="mt-2 text-foreground/70">Loading leaderboard...</p>
+                    </div>
+                  ) : error ? (
+                    <div className="text-center py-8">
+                      <p className="text-destructive">Error loading leaderboard: {error}</p>
+                    </div>
+                  ) : getLeaderboardData().length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-foreground/70">No leaderboard data available yet.</p>
+                    </div>
+                  ) : (
+                    getLeaderboardData().map((player) => (
+                      <div 
+                        key={player.rank}
+                        className={`flex items-center justify-between p-4 rounded-lg transition-all duration-300 hover:bg-muted/20 ${
+                          player.rank <= 3 ? 'glass glow-primary' : 'bg-muted/10'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-4">
+                          {/* Rank */}
+                          <div className="flex items-center justify-center w-10 h-10">
+                            {getRankIcon(player.rank)}
+                          </div>
 
-                        {/* Avatar & Info */}
-                        <div className="flex items-center space-x-3">
-                          <Avatar className="h-12 w-12 border-2 border-primary/30">
-                            <AvatarFallback className="bg-gradient-to-r from-primary to-accent text-primary-foreground font-bold">
-                              {player.username.substring(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-semibold flex items-center space-x-2">
-                              <span>{player.username}</span>
-                              {player.badge && (
-                                <Badge variant="outline" className="text-xs">
-                                  {player.badge}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-sm text-foreground/70">
-                              {player.matches} matches • {player.winRate}% win rate
+                          {/* Avatar & Info */}
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="h-12 w-12 border-2 border-primary/30">
+                              <AvatarFallback className="bg-gradient-to-r from-primary to-accent text-primary-foreground font-bold">
+                                {player.username.substring(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-semibold flex items-center space-x-2">
+                                <span>{player.username}</span>
+                                {player.badge && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {player.badge}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-sm text-foreground/70">
+                                {player.matches} matches • {player.winRate}% win rate
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Earnings */}
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-primary">
-                          {player.earnings}
-                        </div>
-                        <div className="text-xs text-foreground/50">
-                          Total Earnings
+                        {/* Earnings */}
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-primary">
+                            {player.earnings}
+                          </div>
+                          <div className="text-xs text-foreground/50">
+                            Total Earnings
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
 
                 <div className="mt-6 text-center">
-                  <Button variant="outline" className="glass-button">
+                  <Button variant="outline" className="glass-button" onClick={handleViewFullLeaderboard}>
                     View Full Leaderboard
                   </Button>
                 </div>
@@ -252,19 +201,23 @@ const LeaderboardsSection = () => {
           {/* Side Stats */}
           <div className="space-y-6">
             {/* Weekly Champion */}
-            <Card className="glass-card glow-primary">
-              <div className="p-6 text-center">
-                <Crown className="h-12 w-12 mx-auto text-yellow-500 mb-4" />
-                <h4 className="font-bold mb-2">Weekly Champion</h4>
-                <div className="text-2xl font-bold text-primary mb-1">NaijaKing</div>
-                <div className="text-sm text-foreground/70 mb-4">
-                  89% Win Rate • ₦125,400 This Week
+            {globalLeaderboard.length > 0 && (
+              <Card className="glass-card glow-primary">
+                <div className="p-6 text-center">
+                  <Crown className="h-12 w-12 mx-auto text-yellow-500 mb-4" />
+                  <h4 className="font-bold mb-2">Top Player</h4>
+                  <div className="text-2xl font-bold text-primary mb-1">
+                    {globalLeaderboard[0]?.username || 'No Data'}
+                  </div>
+                  <div className="text-sm text-foreground/70 mb-4">
+                    {globalLeaderboard[0] ? `${Math.round(globalLeaderboard[0].win_rate)}% Win Rate • ₦${globalLeaderboard[0].total_earnings.toLocaleString()}` : 'No data available'}
+                  </div>
+                  <Badge className="bg-gradient-to-r from-primary to-accent">
+                    🏆 Current Leader
+                  </Badge>
                 </div>
-                <Badge className="bg-gradient-to-r from-primary to-accent">
-                  🏆 Undefeated Streak: 15
-                </Badge>
-              </div>
-            </Card>
+              </Card>
+            )}
 
             {/* Quick Stats */}
             <Card className="glass-card">
@@ -273,45 +226,26 @@ const LeaderboardsSection = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-foreground/70">Total Players:</span>
-                    <span className="font-semibold">12,547</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-foreground/70">Matches Today:</span>
-                    <span className="font-semibold text-primary">1,834</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-foreground/70">Winnings Paid:</span>
-                    <span className="font-semibold text-success">₦2.4M</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-foreground/70">Active Now:</span>
-                    <span className="font-semibold text-accent">456</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Achievements */}
-            <Card className="glass-card">
-              <div className="p-6">
-                <h4 className="font-bold mb-4">Latest Achievements</h4>
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <Badge className="bg-yellow-500 text-yellow-900">🏆</Badge>
-                    <span className="text-foreground/70">
-                      <strong>SniperKing9ja</strong> earned "Sharpshooter"
+                    <span className="font-semibold">
+                      {globalLeaderboard.length > 0 ? globalLeaderboard.length : '0'}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge className="bg-purple-500 text-purple-900">💎</Badge>
-                    <span className="text-foreground/70">
-                      <strong>LagosLegend</strong> hit 100 wins
+                  <div className="flex justify-between">
+                    <span className="text-foreground/70">Total Matches:</span>
+                    <span className="font-semibold text-primary">
+                      {globalLeaderboard.reduce((sum, player) => sum + player.total_matches, 0)}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge className="bg-blue-500 text-blue-900">⚡</Badge>
-                    <span className="text-foreground/70">
-                      <strong>AbujaMaster</strong> won 10 in a row
+                  <div className="flex justify-between">
+                    <span className="text-foreground/70">Total Winnings:</span>
+                    <span className="font-semibold text-success">
+                      ₦{globalLeaderboard.reduce((sum, player) => sum + player.total_earnings, 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-foreground/70">Active Players:</span>
+                    <span className="font-semibold text-accent">
+                      {globalLeaderboard.filter(player => player.total_matches > 0).length}
                     </span>
                   </div>
                 </div>
@@ -330,7 +264,7 @@ const LeaderboardsSection = () => {
               Every match counts towards your position on the leaderboard. 
               Start winning today and see your name among the legends.
             </p>
-            <Button size="lg" className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary">
+            <Button size="lg" className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary" onClick={handleStartCompeting}>
               <TrendingUp className="mr-2 h-5 w-5" />
               Start Competing
             </Button>

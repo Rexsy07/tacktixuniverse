@@ -5,10 +5,18 @@ import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
-type UserStats = Database['public']['Tables']['user_stats']['Row'];
 type UserWallet = Database['public']['Tables']['user_wallets']['Row'];
-type GamerTag = Database['public']['Tables']['gamer_tags']['Row'] & {
-  games?: Database['public']['Tables']['games']['Row'];
+
+// Simplified user stats computed from matches
+type UserStats = {
+  user_id: string;
+  total_matches: number;
+  total_wins: number;
+  total_losses: number;
+  total_earnings: number;
+  longest_win_streak: number;
+  current_rank: string | null;
+  updated_at: string;
 };
 
 export function useProfile() {
@@ -16,7 +24,6 @@ export function useProfile() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [wallet, setWallet] = useState<UserWallet | null>(null);
-  const [gamerTags, setGamerTags] = useState<GamerTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,15 +48,6 @@ export function useProfile() {
 
       if (profileError && profileError.code !== 'PGRST116') throw profileError;
       
-      // Fetch stats (with fallback computation if absent)
-      const { data: statsData, error: statsError } = await supabase
-        .from('user_stats')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (statsError && statsError.code !== 'PGRST116') throw statsError;
-
       // Fetch wallet
       const { data: walletData, error: walletError } = await supabase
         .from('user_wallets')
@@ -59,47 +57,31 @@ export function useProfile() {
 
       if (walletError && walletError.code !== 'PGRST116') throw walletError;
 
-      // Fetch gamer tags
-      const { data: gamerTagsData, error: gamerTagsError } = await supabase
-        .from('gamer_tags')
-        .select(`
-          *,
-          games(*)
-        `)
-        .eq('user_id', user.id);
+      // Compute stats from matches
+      const { count: totalMatches } = await supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .or(`creator_id.eq.${user.id},opponent_id.eq.${user.id}`);
 
-      if (gamerTagsError) throw gamerTagsError;
+      const { count: totalWins } = await supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('winner_id', user.id);
 
-      let resolvedStats = statsData;
-      if (!resolvedStats) {
-        // Fallback: compute minimal stats from matches
-        const { count: totalMatches } = await supabase
-          .from('matches')
-          .select('*', { count: 'exact', head: true })
-          .or(`creator_id.eq.${user.id},opponent_id.eq.${user.id}`);
-
-        const { count: totalWins } = await supabase
-          .from('matches')
-          .select('*', { count: 'exact', head: true })
-          .eq('winner_id', user.id);
-
-        resolvedStats = {
-          // @ts-ignore
-          user_id: user.id,
-          total_matches: totalMatches || 0,
-          total_wins: totalWins || 0,
-          total_losses: Math.max((totalMatches || 0) - (totalWins || 0), 0),
-          total_earnings: 0,
-          longest_win_streak: 0,
-          current_rank: null,
-          updated_at: new Date().toISOString()
-        } as any;
-      }
+      const computedStats: UserStats = {
+        user_id: user.id,
+        total_matches: totalMatches || 0,
+        total_wins: totalWins || 0,
+        total_losses: Math.max((totalMatches || 0) - (totalWins || 0), 0),
+        total_earnings: walletData?.balance || 0,
+        longest_win_streak: 0,
+        current_rank: null,
+        updated_at: new Date().toISOString()
+      };
 
       setProfile(profileData);
-      setStats(resolvedStats);
+      setStats(computedStats);
       setWallet(walletData);
-      setGamerTags(gamerTagsData || []);
       setError(null);
     } catch (err: any) {
       setError(err.message);
@@ -134,38 +116,13 @@ export function useProfile() {
     }
   };
 
-  const updateGamerTag = async (gameId: string, gamerTag: string) => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('gamer_tags')
-        .upsert({
-          user_id: user.id,
-          game_id: gameId,
-          gamer_tag: gamerTag,
-          updated_at: new Date().toISOString()
-        });
-
-      if (error) throw error;
-      
-      toast.success('Gamer tag updated successfully');
-      fetchUserProfile();
-    } catch (err: any) {
-      toast.error(err.message);
-      console.error('Error updating gamer tag:', err);
-    }
-  };
-
   return {
     profile,
     stats,
     wallet,
-    gamerTags,
     loading,
     error,
     updateProfile,
-    updateGamerTag,
     refetch: fetchUserProfile
   };
 }

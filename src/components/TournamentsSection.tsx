@@ -3,7 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Trophy, Users, Calendar, Zap, Clock, ArrowRight } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { useTournaments } from "@/hooks/useTournaments";
 
 interface Tournament {
   id: string;
@@ -19,31 +20,41 @@ interface Tournament {
 }
 
 const TournamentsSection = () => {
+  const { tournaments: dbTournaments, loading: tournamentsLoading } = useTournaments();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const navigate = useNavigate();
+
+  const handleViewAllTournaments = () => {
+    navigate('/tournaments');
+  };
+
+  const handleTournamentSchedule = () => {
+    navigate('/tournaments');
+  };
 
   useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase
-        .from('tournaments')
-        .select('id, name, prize_pool, entry_fee, max_participants, current_participants, start_date, status, games(short_name), format')
-        .order('start_date', { ascending: true })
-        .limit(6);
-      const mapped = (data || []).map((t: any) => ({
+    // Transform database tournaments to local format
+    if (dbTournaments && dbTournaments.length > 0) {
+      const transformedTournaments = dbTournaments.slice(0, 6).map((t: any) => ({
         id: t.id,
         name: t.name,
         game: t.games?.short_name || 'Game',
         prizePool: `₦${Number(t.prize_pool || 0).toLocaleString()}`,
         entryFee: `₦${Number(t.entry_fee || 0).toLocaleString()}`,
         participants: t.current_participants || 0,
-        maxParticipants: t.max_participants || 0,
+        maxParticipants: t.max_participants || 100,
         startDate: t.start_date ? new Date(t.start_date).toLocaleDateString() : '',
-        status: (t.status === 'in_progress' ? 'live' : (t.status as any)) || 'upcoming',
-        format: t.format || 'Format'
+        status: (t.status === 'registration' ? 'upcoming' : 
+                t.status === 'in_progress' ? 'live' : 
+                t.status || 'upcoming') as 'upcoming' | 'live' | 'completed',
+        format: t.format || 'Tournament Format'
       }));
-      setTournaments(mapped as any);
-    };
-    load();
-  }, []);
+      setTournaments(transformedTournaments);
+    } else if (!tournamentsLoading) {
+      // No real data available; do not show mock data
+      setTournaments([]);
+    }
+  }, [dbTournaments, tournamentsLoading]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -57,7 +68,7 @@ const TournamentsSection = () => {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'live': return 'LIVE';
-      case 'upcoming': return 'Register';
+      case 'upcoming': return 'Upcoming';
       case 'completed': return 'Finished';
       default: return status;
     }
@@ -78,50 +89,25 @@ const TournamentsSection = () => {
           </p>
         </div>
 
-        {/* Featured Tournament */}
-        <div className="mb-12">
-          <Card className="glass-card overflow-hidden glow-primary">
-            <div className="bg-gradient-to-r from-primary/20 to-accent/20 p-8">
-              <div className="flex flex-col lg:flex-row items-center justify-between">
-                <div className="text-center lg:text-left mb-6 lg:mb-0">
-                  <Badge className="bg-destructive text-destructive-foreground mb-4 animate-pulse">
-                    🔴 LIVE TOURNAMENT
-                  </Badge>
-                  <h3 className="text-3xl font-bold mb-2">PUBG Squad Showdown</h3>
-                  <p className="text-xl text-foreground/80 mb-4">
-                    ₦100,000 Prize Pool • 4v4 Teams • Battle Royale
-                  </p>
-                  <div className="flex flex-wrap gap-4 text-sm">
-                    <div className="flex items-center">
-                      <Users className="h-4 w-4 mr-2 text-primary" />
-                      16/20 Teams
-                    </div>
-                    <div className="flex items-center">
-                      <Trophy className="h-4 w-4 mr-2 text-accent" />
-                      Entry: ₦2,000
-                    </div>
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-success" />
-                      Semi-Finals
-                    </div>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <Button size="lg" className="bg-gradient-to-r from-destructive to-destructive/80 hover:opacity-90 glow-primary pulse-glow">
-                    <Zap className="mr-2 h-5 w-5" />
-                    Watch Live
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
 
         {/* Tournaments Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {tournaments.filter(t => t.status !== 'live').map((tournament) => (
-            <Card key={tournament.id} className="glass-card game-card overflow-hidden">
-              <div className="p-6">
+        {tournamentsLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-foreground/70">Loading tournaments...</p>
+          </div>
+        ) : tournaments.length === 0 ? (
+          <div className="text-center py-12 mb-12">
+            <p className="text-foreground/70 mb-4">No tournaments available right now.</p>
+            <Button variant="outline" className="glass-button" onClick={handleViewAllTournaments}>
+              View all tournaments
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            {tournaments.filter(t => t.status !== 'live').map((tournament) => (
+              <Card key={tournament.id} className="glass-card game-card overflow-hidden">
+                <div className="p-6">
                 {/* Tournament Header */}
                 <div className="flex items-center justify-between mb-4">
                   <Badge variant="secondary" className="font-semibold">
@@ -179,17 +165,12 @@ const TournamentsSection = () => {
                   </div>
                 </div>
 
-                {/* Action Button */}
-                <Button 
-                  className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                  disabled={tournament.participants >= tournament.maxParticipants}
-                >
-                  {tournament.participants >= tournament.maxParticipants ? 'Full' : 'Register Now'}
-                </Button>
+                {/* No join/register actions on homepage */}
               </div>
             </Card>
           ))}
-        </div>
+          </div>
+        )}
 
         {/* Tournament Features */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
@@ -234,11 +215,11 @@ const TournamentsSection = () => {
               Join Nigeria's most competitive gaming tournaments. Rise through the ranks and claim your share of massive prize pools.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary">
+              <Button size="lg" className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary" onClick={handleViewAllTournaments}>
                 <Trophy className="mr-2 h-5 w-5" />
                 View All Tournaments
               </Button>
-              <Button size="lg" variant="outline" className="glass-button border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+              <Button size="lg" variant="outline" className="glass-button border-primary text-primary hover:bg-primary hover:text-primary-foreground" onClick={handleTournamentSchedule}>
                 <Calendar className="mr-2 h-5 w-5" />
                 Tournament Schedule
               </Button>

@@ -19,10 +19,8 @@ const DashboardProfile = () => {
   const { 
     profile, 
     stats, 
-    gamerTags, 
     loading, 
-    updateProfile, 
-    updateGamerTag 
+    updateProfile 
   } = useProfile();
   const { games } = useGames();
   const { matches } = useMatches();
@@ -33,8 +31,6 @@ const DashboardProfile = () => {
     full_name: profile?.full_name || "",
     avatar_url: profile?.avatar_url || ""
   });
-
-  const [gamerTagsForm, setGamerTagsForm] = useState<{[key: string]: string}>({});
 
   // Update form when profile loads
   useState(() => {
@@ -57,24 +53,19 @@ const DashboardProfile = () => {
 
   const recentMatches = matches.slice(0, 5).map(match => ({
     opponent: match.opponent_profile?.username || match.creator_profile?.username || "Unknown",
-    game: match.games?.short_name || "Game",
+    game: match.games?.name || "Game",
     result: match.winner_id === profile?.user_id ? "won" : "lost",
     stake: match.stake_amount,
     date: match.completed_at || match.created_at
   }));
 
   const handleSaveProfile = async () => {
-    await updateProfile(profileForm);
+    await updateProfile({
+      username: profileForm.username,
+      full_name: profileForm.full_name,
+      avatar_url: profileForm.avatar_url
+    });
     setEditMode(false);
-  };
-
-  const handleSaveGamerTags = async () => {
-    for (const [gameId, tag] of Object.entries(gamerTagsForm)) {
-      if (tag) {
-        await updateGamerTag(gameId, tag);
-      }
-    }
-    setGamerTagsForm({});
   };
 
   if (loading) {
@@ -163,9 +154,8 @@ const DashboardProfile = () => {
         {/* Main Content */}
         <div className="lg:col-span-2">
           <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 glass-card">
+            <TabsList className="grid w-full grid-cols-3 glass-card">
               <TabsTrigger value="profile">Profile</TabsTrigger>
-              <TabsTrigger value="gamer-tags">Gamer Tags</TabsTrigger>
               <TabsTrigger value="achievements">Achievements</TabsTrigger>
               <TabsTrigger value="history">Match History</TabsTrigger>
             </TabsList>
@@ -189,7 +179,7 @@ const DashboardProfile = () => {
                       </div>
                       
                       <div>
-                        <Label htmlFor="full_name">Full Name</Label>
+                        <Label htmlFor="full_name">Display Name</Label>
                         <Input
                           id="full_name"
                           value={profileForm.full_name}
@@ -209,37 +199,6 @@ const DashboardProfile = () => {
               </Card>
             </TabsContent>
 
-            {/* Gamer Tags Tab */}
-            <TabsContent value="gamer-tags" className="mt-6">
-              <Card className="glass-card">
-                <div className="p-6">
-                  <h3 className="text-xl font-bold mb-6">Game Accounts</h3>
-                  
-                  <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSaveGamerTags(); }}>
-                    <div className="space-y-4">
-                      {games.map(game => {
-                        const existingTag = gamerTags.find(tag => tag.game_id === game.id);
-                        return (
-                          <div key={game.id}>
-                            <Label htmlFor={game.id}>{game.name}</Label>
-                            <Input
-                              id={game.id}
-                              placeholder={`Your ${game.name} username`}
-                              defaultValue={existingTag?.gamer_tag || ""}
-                              onChange={(e) => setGamerTagsForm(prev => ({...prev, [game.id]: e.target.value}))}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                    
-                    <Button type="submit" className="bg-gradient-to-r from-primary to-accent">
-                      Update Gamer Tags
-                    </Button>
-                  </form>
-                </div>
-              </Card>
-            </TabsContent>
 
             {/* Achievements Tab */}
             <TabsContent value="achievements" className="mt-6">

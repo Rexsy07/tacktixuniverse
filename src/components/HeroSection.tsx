@@ -1,8 +1,25 @@
 import { Button } from "@/components/ui/button";
 import { Play, Trophy, Zap } from "lucide-react";
 import heroBanner from "@/assets/hero-banner.jpg";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const HeroSection = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handleStartPlaying = () => {
+    if (!user) {
+      navigate('/signup');
+      return;
+    }
+    navigate('/games');
+  };
+
+  const handleViewGames = () => {
+    navigate('/games');
+  };
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image with Overlay */}
@@ -51,6 +68,7 @@ const HeroSection = () => {
             <Button
               size="lg"
               className="px-8 py-4 text-lg bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary pulse-glow transition-all duration-300"
+              onClick={handleStartPlaying}
             >
               <Play className="mr-2 h-5 w-5" />
               Start Playing
@@ -59,6 +77,7 @@ const HeroSection = () => {
               size="lg" 
               variant="outline"
               className="px-8 py-4 text-lg glass-button border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+              onClick={handleViewGames}
             >
               <Trophy className="mr-2 h-5 w-5" />
               View Games

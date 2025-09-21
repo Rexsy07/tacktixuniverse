@@ -18,12 +18,12 @@ const Games = () => {
     id: game.id,
     name: game.name,
     shortName: game.short_name,
-    cover: game.cover_image_url || "/placeholder.svg",
+    cover: game.cover_image_url,
     description: game.description || "Popular mobile game",
     modes: game.game_modes?.map(mode => mode.name) || [],
     stakes: `₦${game.min_stake?.toLocaleString()} - ₦${game.max_stake?.toLocaleString()}`,
     activeMatches: game.active_matches_count || 0,
-    playersOnline: Math.floor(Math.random() * 1000) + 500,
+    playersOnline: game.players_online || 0,
     popularity: game.active_matches_count && game.active_matches_count > 30 ? "Very High" : 
                 game.active_matches_count && game.active_matches_count > 15 ? "High" : "Medium"
   }));

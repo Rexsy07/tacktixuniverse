@@ -1,8 +1,21 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Gamepad2, Camera, Trophy, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const HowItWorks = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handleStartPlayingNow = () => {
+    if (!user) {
+      navigate('/signup');
+      return;
+    }
+    navigate('/games');
+  };
+
   const steps = [
     {
       id: 1,
@@ -151,6 +164,7 @@ const HowItWorks = () => {
             <Button 
               size="lg" 
               className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary pulse-glow px-8"
+              onClick={handleStartPlayingNow}
             >
               <Trophy className="mr-2 h-5 w-5" />
               Start Playing Now

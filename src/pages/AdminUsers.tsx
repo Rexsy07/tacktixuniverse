@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { 
   Search, Filter, MoreVertical, User, 
-  Ban, CheckCircle, AlertCircle, Wallet 
+  Ban, CheckCircle, AlertCircle, Wallet, Shield, ShieldCheck 
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -22,7 +22,7 @@ const AdminUsers = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const { users, loading } = useAdminUsers();
+  const { users, loading, changeUserRole, suspendUser } = useAdminUsers();
   const totalUsers = users.length;
   const activeCount = users.filter(u => u.status === 'active').length;
   const pendingCount = users.filter(u => u.status === 'pending').length;
@@ -61,6 +61,28 @@ const AdminUsers = () => {
   const handleReactivateUser = (userId: string, username: string) => {
     toast.success(`User ${username} has been reactivated`);
     // Handle reactivate logic here
+  };
+
+  const handlePromoteToAdmin = async (userId: string, username: string) => {
+    const result = await changeUserRole(userId, 'admin');
+    if (result.success) {
+      toast.success(`${username} has been promoted to admin`);
+    }
+  };
+
+  const handleDemoteToUser = async (userId: string, username: string) => {
+    const result = await changeUserRole(userId, 'user');
+    if (result.success) {
+      toast.success(`${username} has been demoted to user`);
+    }
+  };
+
+  const getRoleColor = (role: string) => {
+    return role === 'admin' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+  };
+
+  const getRoleIcon = (role: string) => {
+    return role === 'admin' ? <ShieldCheck className="h-3 w-3" /> : <User className="h-3 w-3" />;
   };
 
   return (
@@ -146,8 +168,8 @@ const AdminUsers = () => {
         <Card className="glass-card">
           <div className="p-6">
             <div className="space-y-4">
-              {filteredUsers.map((user) => (
-                <div key={user.id} className="glass rounded-lg p-4">
+              {filteredUsers.map((user, index) => (
+                <div key={`${user.id}-${index}`} className="glass rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1">
                       <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">
@@ -163,6 +185,10 @@ const AdminUsers = () => {
                               Verified
                             </Badge>
                           )}
+                          <Badge className={`${getRoleColor(user.role)} text-xs`}>
+                            {getRoleIcon(user.role)}
+                            <span className="ml-1 capitalize">{user.role}</span>
+                          </Badge>
                           <Badge className={`${getStatusColor(user.status)} text-xs`}>
                             {getStatusIcon(user.status)}
                             <span className="ml-1 capitalize">{user.status}</span>
@@ -214,6 +240,23 @@ const AdminUsers = () => {
                             <Wallet className="mr-2 h-4 w-4" />
                             View Wallet
                           </DropdownMenuItem>
+                          {user.role === 'user' ? (
+                            <DropdownMenuItem 
+                              className="text-purple-600"
+                              onClick={() => handlePromoteToAdmin(user.id, user.username)}
+                            >
+                              <ShieldCheck className="mr-2 h-4 w-4" />
+                              Promote to Admin
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem 
+                              className="text-orange-600"
+                              onClick={() => handleDemoteToUser(user.id, user.username)}
+                            >
+                              <Shield className="mr-2 h-4 w-4" />
+                              Demote to User
+                            </DropdownMenuItem>
+                          )}
                           {user.status === "active" ? (
                             <DropdownMenuItem 
                               className="text-destructive" 

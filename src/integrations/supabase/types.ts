@@ -14,6 +14,46 @@ export type Database = {
   }
   public: {
     Tables: {
+      match_participants: {
+        Row: {
+          id: string
+          match_id: string
+          user_id: string
+          team: 'A' | 'B'
+          role: 'captain' | 'member'
+          joined_at: string
+        }
+        Insert: {
+          id?: string
+          match_id: string
+          user_id: string
+          team: 'A' | 'B'
+          role?: 'captain' | 'member'
+          joined_at?: string
+        }
+        Update: {
+          id?: string
+          match_id?: string
+          user_id?: string
+          team?: 'A' | 'B'
+          role?: 'captain' | 'member'
+          joined_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_participants_match_id_fkey"
+            columns: ["match_id"]
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_participants_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      },
       achievements: {
         Row: {
           created_at: string
@@ -607,6 +647,28 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      accept_team_challenge: {
+        Args: {
+          p_match_id: string
+          p_captain_id: string
+          p_team_members: string[]
+        }
+        Returns: void
+      }
+      create_challenge: {
+        Args: {
+          p_creator_id: string
+          p_game_id: string
+          p_game_mode_id: string
+          p_format: string
+          p_map_name: string | null
+          p_stake_amount: number
+          p_duration_minutes: number | null
+          p_custom_rules: string | null
+          p_team_members: string[]
+        }
+        Returns: string
       }
     }
     Enums: {
