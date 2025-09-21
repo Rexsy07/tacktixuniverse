@@ -31,9 +31,11 @@ import AdminTournaments from "./pages/AdminTournaments";
 import AdminAnalytics from "./pages/AdminAnalytics";
 import AdminNotifications from "./pages/AdminNotifications";
 import AdminSettings from "./pages/AdminSettings";
+import Notifications from "./pages/Notifications";
 import AdminTournamentCreate from "./pages/AdminTournamentCreate";
 import AdminTournamentDetail from "./pages/AdminTournamentDetail";
 import AdminTournamentManage from "./pages/AdminTournamentManage";
+import TournamentDetail from "./pages/TournamentDetail";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +57,7 @@ const App = () => (
             <Route path="/games" element={<Games />} />
             <Route path="/games/:slug" element={<GameDetail />} />
             <Route path="/tournaments" element={<Tournaments />} />
+            <Route path="/tournaments/:tournamentId" element={<TournamentDetail />} />
             <Route path="/leaderboards" element={<Leaderboards />} />
             <Route path="/how-it-works" element={<HowItWorksPage />} />
             <Route path="/support" element={<Support />} />
@@ -92,6 +95,11 @@ const App = () => (
             <Route path="/matches/:matchId" element={
               <ProtectedRoute>
                 <MatchDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/notifications" element={
+              <ProtectedRoute>
+                <Notifications />
               </ProtectedRoute>
             } />
             
