@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
@@ -40,15 +40,13 @@ import TournamentBracket from "./pages/TournamentBracket";
 
 const queryClient = new QueryClient();
 
-const Router = import.meta.env.PROD ? HashRouter : BrowserRouter;
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <Router 
+        <BrowserRouter 
           basename={import.meta.env.PROD ? "/tacktixuniverse" : ""}
           future={{
             v7_startTransition: true,
@@ -170,7 +168,7 @@ const App = () => (
             
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </Router>
+        </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
