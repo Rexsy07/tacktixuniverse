@@ -42,6 +42,9 @@ export function Header() {
     { name: 'Support', href: '/support' },
   ];
 
+  const base = (import.meta as any).env?.BASE_URL || '/';
+  const logoSrc = `${base}IMG_9354-removebg-preview.png`;
+
 const { maintenanceMode } = usePlatformSettings();
 
   return (
@@ -52,10 +55,8 @@ const { maintenanceMode } = usePlatformSettings();
       <div className="container flex h-16 items-center">
         <div className="mr-4 hidden md:flex">
           <Link className="mr-6 flex items-center space-x-2" to="/">
-            <Gamepad2 className="h-6 w-6" />
-            <span className="hidden font-bold sm:inline-block">
-              TacktixEdge
-            </span>
+            <img src={logoSrc} alt="TacktixEdge" className="h-8 w-auto" />
+            <span className="hidden font-bold sm:inline-block">TacktixEdge</span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             {navLinks.map((link) => (
@@ -80,7 +81,7 @@ const { maintenanceMode } = usePlatformSettings();
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <div className="w-full flex-1 md:w-auto md:flex-none">
             <Link className="inline-flex items-center space-x-2 md:hidden" to="/">
-              <Gamepad2 className="h-6 w-6" />
+              <img src={logoSrc} alt="TacktixEdge" className="h-6 w-auto" />
               <span className="font-bold">TacktixEdge</span>
             </Link>
           </div>
