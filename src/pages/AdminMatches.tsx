@@ -8,11 +8,34 @@ import { Input } from "@/components/ui/input";
 import { CheckCircle, XCircle, Search, Filter, Gamepad2, Users, Clock, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminMatches } from "@/hooks/useAdminData";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const AdminMatches = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const { matches, loading, resolveDispute } = useAdminMatches();
+  const { matches, loading, resolveDispute, refetch } = useAdminMatches();
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+
+  const cancelMatchAsAdmin = async (matchId: string) => {
+    try {
+      const { error } = await supabase.rpc('cancel_match_escrow', { p_match_id: matchId });
+      if (error) throw error;
+      toast.success('Match cancelled and funds refunded');
+      await refetch();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to cancel match');
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -129,14 +152,36 @@ const AdminMatches = () => {
                       >
                         View
                       </Button>
-                      {match.status === "disputed" && (
-                        <Button 
-                          size="sm" 
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                          onClick={() => handleResolveDispute(match.id, match.players[0])} // Resolve in favor of first player
+                      {(['in_progress','pending_result','disputed'].includes(match.status)) && (
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleResolveDispute(match.id, (match as any).creator_id || '')}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Set Winner: Creator
+                          </Button>
+                          {(match as any).opponent_id && (
+                            <Button 
+                              size="sm" 
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                              onClick={() => handleResolveDispute(match.id, (match as any).opponent_id || '')}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Set Winner: Opponent
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      {(match.status === 'awaiting_opponent' || match.status === 'in_progress') && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => setConfirmCancelId(match.id)}
                         >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Resolve Dispute
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Cancel Match
                         </Button>
                       )}
                     </div>
@@ -147,6 +192,29 @@ const AdminMatches = () => {
           </Card>
         </div>
       </main>
+
+      {/* Confirm cancel dialog */}
+      <AlertDialog open={!!confirmCancelId} onOpenChange={(open) => !open && setConfirmCancelId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this match?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will cancel the match and refund any held funds. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Back</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => {
+              if (confirmCancelId) {
+                await cancelMatchAsAdmin(confirmCancelId);
+              }
+              setConfirmCancelId(null);
+            }}>
+              Confirm Cancel
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

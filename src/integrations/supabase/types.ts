@@ -632,6 +632,67 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_holds: {
+        Row: {
+          id: string
+          match_id: string
+          user_id: string
+          amount: number
+          status: string
+          created_at: string
+          released_at: string | null
+        }
+        Insert: {
+          id?: string
+          match_id: string
+          user_id: string
+          amount: number
+          status?: string
+          created_at?: string
+          released_at?: string | null
+        }
+        Update: {
+          id?: string
+          match_id?: string
+          user_id?: string
+          amount?: number
+          status?: string
+          created_at?: string
+          released_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_holds_match_id_fkey"
+            columns: ["match_id"]
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_holds_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      platform_settings: {
+        Row: {
+          id: string
+          fee_percentage: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          fee_percentage?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          fee_percentage?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -669,6 +730,48 @@ export type Database = {
           p_team_members: string[]
         }
         Returns: string
+      }
+      create_match_with_escrow: {
+        Args: {
+          p_creator_id: string
+          p_game_id: string
+          p_game_mode_id: string
+          p_format: string
+          p_map_name: string | null
+          p_stake_amount: number
+          p_duration_minutes: number | null
+          p_custom_rules: string | null
+        }
+        Returns: string
+      }
+      accept_challenge_with_escrow: {
+        Args: {
+          p_match_id: string
+          p_user_id: string
+        }
+        Returns: void
+      }
+      accept_team_challenge_with_escrow: {
+        Args: {
+          p_match_id: string
+          p_captain_id: string
+          p_team_members: string[]
+        }
+        Returns: void
+      }
+      cancel_match_escrow: {
+        Args: {
+          p_match_id: string
+        }
+        Returns: void
+      }
+      settle_match_escrow: {
+        Args: {
+          p_match_id: string
+          p_winner_id: string
+          p_fee_percentage?: number
+        }
+        Returns: void
       }
     }
     Enums: {

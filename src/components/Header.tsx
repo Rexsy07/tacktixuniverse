@@ -23,6 +23,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { usePlatformSettings } from '@/hooks/usePlatformSettings';
 import { useMatches } from '@/hooks/useMatches';
 
 export function Header() {
@@ -41,8 +42,13 @@ export function Header() {
     { name: 'Support', href: '/support' },
   ];
 
+const { maintenanceMode } = usePlatformSettings();
+
   return (
-    <header className="fixed top-0 w-full z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+<header className="fixed top-0 w-full z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+      {maintenanceMode && (
+        <div className="w-full bg-warning text-warning-foreground text-center text-xs py-1">Maintenance mode is enabled</div>
+      )}
       <div className="container flex h-16 items-center">
         <div className="mr-4 hidden md:flex">
           <Link className="mr-6 flex items-center space-x-2" to="/">

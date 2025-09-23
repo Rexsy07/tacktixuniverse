@@ -15,6 +15,7 @@ export function useMatches() {
   const { user } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
 
@@ -38,7 +39,7 @@ export function useMatches() {
           table: 'matches',
           filter: `creator_id=eq.${user.id}`,
         },
-        () => fetchUserMatches()
+        () => fetchUserMatches(true)
       )
       .on(
         'postgres_changes',
@@ -48,7 +49,7 @@ export function useMatches() {
           table: 'matches',
           filter: `opponent_id=eq.${user.id}`,
         },
-        () => fetchUserMatches()
+        () => fetchUserMatches(true)
       )
       .subscribe();
 
@@ -66,15 +67,20 @@ export function useMatches() {
   // Polling fallback for user matches (every 6s)
   useEffect(() => {
     if (!user) return;
-    const id = setInterval(fetchUserMatches, 6000);
+    const id = setInterval(() => fetchUserMatches(true), 6000);
     return () => clearInterval(id);
   }, [user]);
 
-  const fetchUserMatches = async () => {
+  const fetchUserMatches = async (isRefresh = false) => {
     if (!user) return;
 
     try {
-      setLoading(true);
+      // Only show loading spinner on initial load, not on refreshes
+      if (matches.length === 0) {
+        setLoading(true);
+      } else if (isRefresh) {
+        setRefreshing(true);
+      }
       
       const { data, error } = await supabase
         .from('matches')
@@ -121,15 +127,17 @@ export function useMatches() {
       console.error('Error fetching user matches:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  return { matches, loading, error, refetch: fetchUserMatches };
+  return { matches, loading, refreshing, error, refetch: fetchUserMatches };
 }
 
 export function useOpenChallenges(gameFilter?: string) {
   const [challenges, setChallenges] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
 
@@ -145,7 +153,7 @@ export function useOpenChallenges(gameFilter?: string) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'matches' },
-        () => fetchOpenChallenges()
+        () => fetchOpenChallenges(true)
       )
       .subscribe();
 
@@ -162,13 +170,18 @@ export function useOpenChallenges(gameFilter?: string) {
 
   // Polling fallback for open challenges (every 6s)
   useEffect(() => {
-    const id = setInterval(fetchOpenChallenges, 6000);
+    const id = setInterval(() => fetchOpenChallenges(true), 6000);
     return () => clearInterval(id);
   }, [gameFilter]);
 
-  const fetchOpenChallenges = async () => {
+  const fetchOpenChallenges = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      // Only show loading spinner on initial load, not on refreshes
+      if (challenges.length === 0) {
+        setLoading(true);
+      } else if (isRefresh) {
+        setRefreshing(true);
+      }
       
       let query = supabase
         .from('matches')
@@ -211,6 +224,7 @@ export function useOpenChallenges(gameFilter?: string) {
       console.error('Error fetching open challenges:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -239,7 +253,7 @@ export function useOpenChallenges(gameFilter?: string) {
 
       if (match.status !== 'awaiting_opponent' || match.opponent_id !== null) {
         toast.error('This challenge is no longer available');
-        fetchOpenChallenges();
+        fetchOpenChallenges(true);
         return;
       }
 
@@ -248,32 +262,35 @@ export function useOpenChallenges(gameFilter?: string) {
         return;
       }
 
-      // Try the simple update approach first
-      console.log('Attempting to update match...');
-      const { error } = await supabase
-        .from('matches')
-        .update({
-          opponent_id: userId,
-          accepted_at: new Date().toISOString(),
-          status: 'in_progress'
-        })
-        .eq('id', matchId);
+      // Accept via RPC which also performs escrow hold on the opponent
+      console.log('Attempting to accept challenge with escrow...');
+      const { error } = await supabase.rpc('accept_challenge_with_escrow', {
+        p_match_id: matchId,
+        p_user_id: userId,
+      });
 
       if (error) {
-        console.error('Update failed:', error);
+        console.error('Accept failed:', error);
+        const msg = error.message || '';
+        if (msg.includes('INSUFFICIENT_FUNDS')) {
+          throw new Error('Insufficient balance to accept this challenge.');
+        }
+        if (msg.includes('USER_SUSPENDED')) {
+          throw new Error('Your account is suspended and cannot accept matches.');
+        }
         throw error;
       }
       
-      console.log('Challenge accepted successfully');
+      console.log('Challenge accepted with escrow successfully');
       toast.success('Challenge accepted successfully!');
-      fetchOpenChallenges();
+      fetchOpenChallenges(true);
     } catch (err: any) {
       console.error('Error accepting challenge:', err);
       toast.error(err.message || 'Failed to accept challenge');
     }
   };
 
-  return { challenges, loading, error, refetch: fetchOpenChallenges, acceptChallenge };
+  return { challenges, loading, refreshing, error, refetch: fetchOpenChallenges, acceptChallenge };
 }
 
 export function useLiveMatches() {

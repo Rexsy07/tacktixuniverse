@@ -12,6 +12,8 @@ import {
 import DashboardLayout from "@/components/DashboardLayout";
 import { useProfile } from "@/hooks/useProfile";
 import { useTransactions } from "@/hooks/useTransactions";
+import { Link } from "react-router-dom";
+import { useWalletHolds } from "@/hooks/useWalletHolds";
 
 const DashboardWallet = () => {
   const [depositAmount, setDepositAmount] = useState("");
@@ -25,6 +27,7 @@ const DashboardWallet = () => {
 
   const { wallet, loading: profileLoading } = useProfile();
   const { transactions, loading: transactionsLoading, createDepositRequest, createWithdrawRequest } = useTransactions();
+  const { holdsDetailed, holds, heldTotal } = useWalletHolds();
 
   // Bank details for deposits
   const bankInfo = {
@@ -107,7 +110,7 @@ const DashboardWallet = () => {
       description="Manage your deposits, withdrawals, and transaction history"
     >
       {/* Wallet Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card className="glass-card">
           <div className="p-6 text-center">
             <Wallet className="h-8 w-8 mx-auto text-primary mb-2" />
@@ -129,6 +132,14 @@ const DashboardWallet = () => {
             <ArrowUpRight className="h-8 w-8 mx-auto text-accent mb-2" />
             <div className="text-2xl font-bold">₦{pendingWithdrawal.toLocaleString()}</div>
             <div className="text-sm text-foreground/70">Pending Withdrawal</div>
+          </div>
+        </Card>
+
+        <Card className="glass-card">
+          <div className="p-6 text-center">
+            <Wallet className="h-8 w-8 mx-auto text-foreground mb-2" />
+            <div className="text-2xl font-bold">₦{heldTotal.toLocaleString()}</div>
+            <div className="text-sm text-foreground/70">Escrowed (Held)</div>
           </div>
         </Card>
       </div>
@@ -324,7 +335,7 @@ const DashboardWallet = () => {
         </div>
 
         {/* Transaction History */}
-        <div>
+        <div className="space-y-8">
           <Card className="glass-card">
             <div className="p-6">
               <h3 className="text-xl font-bold mb-4">Recent Transactions</h3>
@@ -373,6 +384,33 @@ const DashboardWallet = () => {
                 <Button variant="outline" className="w-full mt-4">
                   View All Transactions
                 </Button>
+              )}
+            </div>
+          </Card>
+
+          {/* Held Funds */}
+          <Card className="glass-card">
+            <div className="p-6">
+              <h3 className="text-xl font-bold mb-4">Escrowed Holds</h3>
+              {heldTotal === 0 ? (
+                <div className="text-foreground/70">No held funds</div>
+              ) : (
+                <div className="space-y-3">
+                  {holdsDetailed.map(h => (
+                    <div key={h.id} className="flex items-center justify-between p-3 glass rounded-lg">
+                      <div>
+                        <div className="text-sm text-foreground/70">{h.game_name || 'Game'}</div>
+                        <Link to={`/matches/${h.match_id}`} className="font-mono text-sm text-primary hover:underline">
+                          {h.mode_name ? `${h.mode_name} • ` : ''}{h.match_id.substring(0, 8)}…
+                        </Link>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-foreground/70 text-xs">Held Amount</div>
+                        <div className="text-lg font-bold">₦{h.amount.toLocaleString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </Card>

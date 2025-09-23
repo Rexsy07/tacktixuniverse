@@ -8,7 +8,8 @@ import Footer from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Calendar, Users, ArrowLeft, Trophy } from "lucide-react";
+import { Calendar, Users, ArrowLeft, Trophy } from 'lucide-react';
+import { TeamTournamentRegistration } from '@/components/TeamTournamentRegistration';
 
 interface TournamentDetailData {
   id: string;
@@ -262,6 +263,20 @@ const TournamentDetail = () => {
               </div>
             </div>
           </Card>
+
+          {/* Team Registration for team tournaments */}
+          {tournament.format && tournament.format !== '1v1' && (
+            <div className="mb-6">
+              <TeamTournamentRegistration
+                tournamentId={tournament.id}
+                tournamentName={tournament.name}
+                format={tournament.format}
+                maxParticipants={tournament.max_participants || 0}
+                currentParticipants={participants}
+                onRegistrationSuccess={() => fetchTournament()}
+              />
+            </div>
+          )}
 
           {tournament.description && (
             <Card className="p-6">

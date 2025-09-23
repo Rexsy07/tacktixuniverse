@@ -186,14 +186,38 @@ const Tournaments = () => {
                   ))}
                 </div>
                 
+                {/* Format Filter */}
+                <div className="flex flex-wrap gap-2 mb-8">
+                  <div className="text-sm font-medium text-muted-foreground mr-4 flex items-center">Format:</div>
+                  {['all', '1v1', '2v2', '3v3', '4v4', '5v5'].map((formatFilter) => (
+                    <Button
+                      key={formatFilter}
+                      variant="outline"
+                      size="sm"
+                      className="glass-button"
+                      onClick={() => {
+                        // Add format filtering logic here if needed
+                        console.log('Format filter:', formatFilter);
+                      }}
+                    >
+                      {formatFilter === 'all' ? 'All Formats' : formatFilter}
+                    </Button>
+                  ))}
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredUpcoming.filter(t => !t.featured).map((tournament) => (
                     <Card key={tournament.id} className="glass-card game-card overflow-hidden">
                       <div className="p-6">
                         <div className="flex items-center justify-between mb-4">
-                          <Badge variant="secondary" className="font-semibold">
-                            {tournament.game}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="font-semibold">
+                              {tournament.game}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {tournament.format || '1v1'}
+                            </Badge>
+                          </div>
                           <Badge className={`${getStatusColor(tournament.status)} text-white`}>
                             {getStatusText(tournament.status)}
                           </Badge>

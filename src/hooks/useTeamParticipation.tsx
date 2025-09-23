@@ -74,51 +74,24 @@ export function useTeamParticipation() {
         return false;
       }
 
-      // Update the match to mark it as accepted
-      const { error: updateError } = await supabase
-        .from('matches')
-        .update({
-          opponent_id: user.id,
-          status: 'in_progress',
-          started_at: new Date().toISOString()
-        })
-        .eq('id', matchId);
+      // Accept via RPC which also performs escrow hold on the captain and updates participants
+      const { error: rpcError } = await supabase.rpc('accept_team_challenge_with_escrow', {
+        p_match_id: matchId,
+        p_captain_id: user.id,
+        p_team_members: teamMembers,
+      });
 
-      if (updateError) throw updateError;
-
-      // Add the captain to team B
-      const { error: captainError } = await supabase
-        .from('match_participants')
-        .insert({
-          match_id: matchId,
-          user_id: user.id,
-          team: 'B',
-          role: 'captain'
-        });
-
-      if (captainError) throw captainError;
-
-      // Add team members to team B
-      if (teamMembers.length > 0) {
-        const teamMemberInserts = teamMembers.map(memberId => ({
-          match_id: matchId,
-          user_id: memberId,
-          team: 'B',
-          role: 'member'
-        }));
-
-        const { error: teamError } = await supabase
-          .from('match_participants')
-          .insert(teamMemberInserts);
-
-        if (teamError) throw teamError;
-      }
+      if (rpcError) throw rpcError;
 
       toast.success('Challenge accepted successfully!');
       return true;
     } catch (error: any) {
       console.error('Error accepting team challenge:', error);
-      toast.error(error.message || 'Failed to accept challenge');
+      const raw = error.message || '';
+      const msg = raw.includes('USER_SUSPENDED')
+        ? 'Your account is suspended and cannot accept matches.'
+        : (raw || 'Failed to accept challenge');
+      toast.error(msg);
       return false;
     } finally {
       setLoading(false);

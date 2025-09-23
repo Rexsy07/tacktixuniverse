@@ -37,46 +37,35 @@ export function useCreateChallenge() {
     try {
       setLoading(true);
 
-      // Create challenge using direct table insert (bypassing problematic RPC function)
-      const { data: matchData, error: challengeError } = await supabase
-        .from('matches')
-        .insert({
-          creator_id: user.id,
-          game_id: challengeData.gameId,
-          game_mode_id: challengeData.modeId,
-          format: challengeData.format,
-          map_name: challengeData.mapName || null,
-          stake_amount: challengeData.stakeAmount,
-          duration_minutes: challengeData.durationMinutes || 60,
-          custom_rules: challengeData.customRules || null,
-          status: 'awaiting_opponent'
-        })
-        .select('id')
-        .single();
+      // Create challenge via RPC that also performs escrow hold on the creator
+      const { data: rpcData, error: rpcError } = await supabase.rpc('create_match_with_escrow', {
+        p_creator_id: user.id,
+        p_game_id: challengeData.gameId,
+        p_game_mode_id: challengeData.modeId,
+        p_format: challengeData.format,
+        p_map_name: challengeData.mapName || null,
+        p_stake_amount: challengeData.stakeAmount,
+        p_duration_minutes: challengeData.durationMinutes || 60,
+        p_custom_rules: challengeData.customRules || null
+      });
 
-      if (challengeError) {
-        console.error('Challenge creation error:', challengeError);
-        throw challengeError;
+      if (rpcError) {
+        console.error('Challenge creation error:', rpcError);
+        const msg = rpcError.message || '';
+        if (msg.includes('INSUFFICIENT_FUNDS')) {
+          throw new Error('Insufficient balance to create this challenge.');
+        }
+        if (msg.includes('USER_SUSPENDED')) {
+          throw new Error('Your account is suspended and cannot create matches.');
+        }
+        throw rpcError;
       }
 
-      if (!matchData?.id) {
+      const matchId = rpcData as unknown as string;
+      if (!matchId) {
         toast.error('Failed to create challenge');
         return;
       }
-
-      const matchId = matchData.id;
-
-      // Add creator to match_participants table for all match formats
-      const { error: participantError } = await supabase
-        .from('match_participants')
-        .insert({
-          match_id: matchId,
-          user_id: user.id,
-          team: 'A' as const,
-          role: 'captain' as const
-        });
-
-      if (participantError) throw participantError;
 
       // For team-based matches, add invited team members if provided (optional)
       if (isTeamFormat(challengeData.format) && challengeData.teamMembers?.length) {

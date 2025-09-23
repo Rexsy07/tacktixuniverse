@@ -179,6 +179,25 @@ const MatchDetail = () => {
            (match?.creator_id === user?.id || match?.opponent_id === user?.id);
   };
 
+  const canCancelMatch = () => {
+    // Allow creator to cancel before an opponent joins
+    return match?.status === 'awaiting_opponent' && match?.creator_id === user?.id;
+  };
+
+  const handleCancelMatch = async () => {
+    if (!user || !match) return;
+    try {
+      const { error } = await supabase.rpc('cancel_match_escrow', {
+        p_match_id: match.id,
+      });
+      if (error) throw error;
+      toast.success('Match cancelled and funds refunded.');
+      fetchMatchDetails();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to cancel match');
+    }
+  };
+
   const handleUploadProof = async () => {
     if (!user || !match || !file) return;
     try {
@@ -226,38 +245,24 @@ const MatchDetail = () => {
     if (!user || !match) return;
 
     try {
-      // Update the match with opponent and status
-      const { error: matchError } = await supabase
-        .from('matches')
-        .update({
-          opponent_id: user.id,
-          accepted_at: new Date().toISOString(),
-          status: 'in_progress'
-        })
-        .eq('id', match.id);
+      // Accept via RPC which also performs escrow hold on the opponent and updates match
+      const { error } = await supabase.rpc('accept_challenge_with_escrow', {
+        p_match_id: match.id,
+        p_user_id: user.id,
+      });
 
-      if (matchError) throw matchError;
-
-      // For 1v1 matches, add only the opponent to match_participants table
-      // (creator is already added when the challenge was created)
-      const { error: participantsError } = await supabase
-        .from('match_participants')
-        .insert({
-          match_id: match.id,
-          user_id: user.id,
-          team: 'B' as const,
-          role: 'captain' as const
-        });
-
-      if (participantsError) {
-        console.warn('Could not add opponent participant:', participantsError);
-        // Don't fail the challenge acceptance if participant can't be added
-      }
+      if (error) throw error;
       
       toast.success('Challenge accepted successfully!');
       fetchMatchDetails(); // Refresh the match data
     } catch (err: any) {
-      toast.error(err.message);
+      const raw = err.message || '';
+      const msg = raw.includes('INSUFFICIENT_FUNDS')
+        ? 'Insufficient balance to accept this challenge.'
+        : raw.includes('USER_SUSPENDED')
+          ? 'Your account is suspended and cannot accept matches.'
+          : (raw || 'Failed to accept challenge');
+      toast.error(msg);
       console.error('Error accepting challenge:', err);
     }
   };
@@ -530,6 +535,17 @@ const MatchDetail = () => {
                           {uploading ? 'Uploading...' : 'Upload Proof'}
                         </Button>
                       </div>
+                    )}
+
+                    {canCancelMatch() && (
+                      <Button 
+                        variant="destructive" 
+                        className="w-full"
+                        onClick={handleCancelMatch}
+                      >
+                        <XCircle className="mr-2 h-4 w-4" />
+                        Cancel Match
+                      </Button>
                     )}
                     
                     <Button 

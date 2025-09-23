@@ -17,12 +17,28 @@ import {
 import AdminSidebar from "@/components/AdminSidebar";
 import { toast } from "sonner";
 import { useAdminUsers } from "@/hooks/useAdminData";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const AdminUsers = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const { users, loading, changeUserRole, suspendUser } = useAdminUsers();
+  const [adjustUserId, setAdjustUserId] = useState<string | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState<string>('0');
+  const [adjustReason, setAdjustReason] = useState<string>('');
+  const [suspendUserId, setSuspendUserId] = useState<string | null>(null);
+  const [suspendReason, setSuspendReason] = useState<string>('');
   const totalUsers = users.length;
   const activeCount = users.filter(u => u.status === 'active').length;
   const pendingCount = users.filter(u => u.status === 'pending').length;
@@ -53,14 +69,20 @@ const AdminUsers = () => {
     }
   };
 
-  const handleSuspendUser = (userId: string, username: string) => {
-    toast.success(`User ${username} has been suspended`);
-    // Handle suspend logic here
+  const handleSuspendUser = (userId: string) => {
+    setSuspendUserId(userId);
   };
 
-  const handleReactivateUser = (userId: string, username: string) => {
-    toast.success(`User ${username} has been reactivated`);
-    // Handle reactivate logic here
+  const handleReactivateUser = async (userId: string, username: string) => {
+    try {
+      const { error } = await supabase
+        .from('user_flags')
+        .upsert({ user_id: userId, is_suspended: false, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+      if (error) throw error;
+      toast.success(`User ${username} has been reactivated`);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to reactivate user');
+    }
   };
 
   const handlePromoteToAdmin = async (userId: string, username: string) => {
@@ -86,14 +108,15 @@ const AdminUsers = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AdminSidebar />
-      
-      <div className="ml-64 p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">User Management</h1>
-          <p className="text-foreground/70">Manage user accounts, verify profiles, and handle suspensions</p>
-        </div>
+    <>
+      <div className="min-h-screen bg-background">
+        <AdminSidebar />
+        
+        <div className="ml-64 p-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-2">User Management</h1>
+            <p className="text-foreground/70">Manage user accounts, verify profiles, and handle suspensions</p>
+          </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -260,7 +283,7 @@ const AdminUsers = () => {
                           {user.status === "active" ? (
                             <DropdownMenuItem 
                               className="text-destructive" 
-                              onClick={() => handleSuspendUser(user.id, user.username)}
+                              onClick={() => handleSuspendUser(user.id)}
                             >
                               <Ban className="mr-2 h-4 w-4" />
                               Suspend User
@@ -285,6 +308,76 @@ const AdminUsers = () => {
         </Card>
       </div>
     </div>
+
+    {/* Adjust Wallet Dialog */}
+    <AlertDialog open={!!adjustUserId} onOpenChange={(o) => !o && setAdjustUserId(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Adjust User Wallet</AlertDialogTitle>
+          <AlertDialogDescription>
+            Enter a positive amount to credit or negative to debit. Balance cannot go below 0.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-3">
+          <Input type="number" value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)} placeholder="Amount (e.g., 500 or -500)" />
+          <Input value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder="Reason (optional)" />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={async () => {
+            try {
+              const amt = parseFloat(adjustAmount || '0');
+              if (!adjustUserId || !amt) return;
+              const { error } = await supabase.rpc('admin_adjust_wallet', {
+                p_user_id: adjustUserId,
+                p_amount: amt,
+                p_reason: adjustReason,
+              });
+              if (error) throw error;
+              toast.success('Wallet adjusted');
+              setAdjustUserId(null);
+              setAdjustAmount('0');
+              setAdjustReason('');
+            } catch (e: any) {
+              toast.error(e.message || 'Failed to adjust wallet');
+            }
+          }}>Confirm</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* Suspend User Dialog */}
+    <AlertDialog open={!!suspendUserId} onOpenChange={(o) => !o && setSuspendUserId(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Suspend this user?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Suspended users cannot create or accept matches.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-3">
+          <Input value={suspendReason} onChange={(e) => setSuspendReason(e.target.value)} placeholder="Reason (optional)" />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={async () => {
+            try {
+              if (!suspendUserId) return;
+              const { error } = await supabase
+                .from('user_flags')
+                .upsert({ user_id: suspendUserId, is_suspended: true, notes: suspendReason, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+              if (error) throw error;
+              toast.success('User suspended');
+              setSuspendUserId(null);
+              setSuspendReason('');
+            } catch (e: any) {
+              toast.error(e.message || 'Failed to suspend user');
+            }
+          }}>Confirm</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 

@@ -382,12 +382,20 @@ export const useAdminMatches = () => {
 
       if (error) throw error;
 
-      toast.success('Dispute resolved successfully');
+      // Settle escrow: refund winner hold, finalize loser hold, credit winnings, record fee
+      const { error: settleErr } = await supabase.rpc('settle_match_escrow', {
+        p_match_id: matchId,
+        p_winner_id: winnerId,
+        p_fee_percentage: 5.0,
+      });
+      if (settleErr) throw settleErr;
+
+      toast.success('Dispute resolved and escrow settled successfully');
       fetchMatches(); // Refresh the data
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error resolving dispute:', error);
-      toast.error('Failed to resolve dispute');
+      toast.error(error.message || 'Failed to resolve dispute');
     }
   };
 

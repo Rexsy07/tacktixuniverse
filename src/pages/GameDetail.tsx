@@ -13,6 +13,13 @@ import Footer from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { useMatches } from "@/hooks/useMatches";
 import { useLeaderboards } from "@/hooks/useLeaderboards";
+import { RefreshOverlay, RefreshIndicator } from "@/components/ui/refresh-indicator";
+import { 
+  GameHeroSkeleton, 
+  GameModeSkeleton, 
+  ChallengeCardSkeleton, 
+  LeaderboardEntrySkeleton 
+} from "@/components/ui/game-skeletons";
 
 // Import game covers
 import codmCover from "@/assets/codm-cover.jpg";
@@ -28,7 +35,7 @@ const GameDetail = () => {
   const [gameModes, setGameModes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const { matches: openChallenges } = useMatches();
+  const { matches: openChallenges, refreshing: challengesRefreshing } = useMatches();
   const { globalLeaderboard } = useLeaderboards();
 
   // Game cover mapping
@@ -121,8 +128,39 @@ const GameDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-background">
+        <Header />
+        
+        <main className="pt-20">
+          {/* Game Hero Section Skeleton */}
+          <section className="py-8 bg-gradient-to-b from-background to-background/50">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="mb-6">
+                <div className="h-6 w-32 bg-muted animate-pulse rounded" />
+              </div>
+              
+              <GameHeroSkeleton />
+            </div>
+          </section>
+
+          {/* Game Content Tabs Skeleton */}
+          <section className="py-8">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="glass-card mb-8 animate-pulse">
+                <div className="h-12 bg-muted rounded" />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <GameModeSkeleton />
+                <GameModeSkeleton />
+                <GameModeSkeleton />
+                <GameModeSkeleton />
+              </div>
+            </div>
+          </section>
+        </main>
+        
+        <Footer />
       </div>
     );
   }
@@ -251,7 +289,11 @@ const GameDetail = () => {
               <TabsContent value="modes" className="mt-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {gameModes.map((mode, index) => (
-                    <Card key={mode.id} className="glass-card">
+                    <Card 
+                      key={mode.id} 
+                      className="glass-card smooth-fade-in smooth-update"
+                      style={{ animationDelay: `${index * 0.15}s` }}
+                    >
                       <div className="p-6">
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-lg font-bold">{mode.name}</h3>
@@ -298,85 +340,95 @@ const GameDetail = () => {
               
               {/* Open Challenges */}
               <TabsContent value="challenges" className="mt-8">
-                <div className="mb-6 flex flex-wrap gap-4">
-                  <Button
-                    variant={stakeFilter === "all" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setStakeFilter("all")}
-                    className="glass-button"
-                  >
-                    All Stakes
-                  </Button>
-                  <Button
-                    variant={stakeFilter === "low" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setStakeFilter("low")}
-                    className="glass-button"
-                  >
-                    Under ₦1,000
-                  </Button>
-                  <Button
-                    variant={stakeFilter === "high" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setStakeFilter("high")}
-                    className="glass-button"
-                  >
-                    Over ₦1,000
-                  </Button>
+                <div className="mb-6 flex flex-wrap gap-4 justify-between items-center">
+                  <div className="flex flex-wrap gap-4">
+                    <Button
+                      variant={stakeFilter === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setStakeFilter("all")}
+                      className="glass-button"
+                    >
+                      All Stakes
+                    </Button>
+                    <Button
+                      variant={stakeFilter === "low" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setStakeFilter("low")}
+                      className="glass-button"
+                    >
+                      Under ₦1,000
+                    </Button>
+                    <Button
+                      variant={stakeFilter === "high" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setStakeFilter("high")}
+                      className="glass-button"
+                    >
+                      Over ₦1,000
+                    </Button>
+                  </div>
+                  
+                  <RefreshIndicator isRefreshing={challengesRefreshing} />
                 </div>
                 
-                <div className="space-y-4">
-                  {gameOpenChallenges.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Trophy className="h-16 w-16 mx-auto text-foreground/30 mb-4" />
-                      <h3 className="text-xl font-semibold mb-2">No Open Challenges</h3>
-                      <p className="text-foreground/70">Be the first to create a challenge for {gameData.name}!</p>
-                    </div>
-                  ) : (
-                    gameOpenChallenges.map((challenge) => (
-                      <Card key={challenge.id} className="glass-card">
-                        <div className="p-6">
-                          <div className="flex flex-col md:flex-row md:items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-4 mb-2">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">
-                                  <span className="text-white font-bold">
-                                    {challenge.creator_profile?.username?.[0]?.toUpperCase() || 'A'}
-                                  </span>
+                <RefreshOverlay isRefreshing={challengesRefreshing}>
+                  <div className="space-y-4">
+                    {gameOpenChallenges.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Trophy className="h-16 w-16 mx-auto text-foreground/30 mb-4" />
+                        <h3 className="text-xl font-semibold mb-2">No Open Challenges</h3>
+                        <p className="text-foreground/70">Be the first to create a challenge for {gameData.name}!</p>
+                      </div>
+                    ) : (
+                      gameOpenChallenges.map((challenge, index) => (
+                        <Card 
+                          key={challenge.id} 
+                          className="glass-card smooth-fade-in smooth-update"
+                          style={{ animationDelay: `${index * 0.1}s` }}
+                        >
+                          <div className="p-6">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-4 mb-2">
+                                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">
+                                    <span className="text-white font-bold">
+                                      {challenge.creator_profile?.username?.[0]?.toUpperCase() || 'A'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold">{challenge.creator_profile?.username || 'Anonymous'}</h4>
+                                    <div className="flex items-center gap-2 text-sm text-foreground/70">
+                                      <Badge variant="outline">{challenge.format}</Badge>
+                                      <span>•</span>
+                                      <span>{challenge.game_modes?.name}</span>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div>
-                                  <h4 className="font-semibold">{challenge.creator_profile?.username || 'Anonymous'}</h4>
-                                  <div className="flex items-center gap-2 text-sm text-foreground/70">
-                                    <Badge variant="outline">{challenge.format}</Badge>
-                                    <span>•</span>
-                                    <span>{challenge.game_modes?.name}</span>
+                                
+                                <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+                                  <div>
+                                    <span className="text-foreground/50">Stake:</span>
+                                    <div className="font-bold text-primary">₦{challenge.stake_amount.toLocaleString()}</div>
+                                  </div>
+                                  <div>
+                                    <span className="text-foreground/50">Posted:</span>
+                                    <div>{new Date(challenge.created_at).toLocaleTimeString()}</div>
                                   </div>
                                 </div>
                               </div>
                               
-                              <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
-                                <div>
-                                  <span className="text-foreground/50">Stake:</span>
-                                  <div className="font-bold text-primary">₦{challenge.stake_amount.toLocaleString()}</div>
-                                </div>
-                                <div>
-                                  <span className="text-foreground/50">Posted:</span>
-                                  <div>{new Date(challenge.created_at).toLocaleTimeString()}</div>
-                                </div>
+                              <div className="mt-4 md:mt-0">
+                                <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
+                                  Accept Challenge
+                                </Button>
                               </div>
                             </div>
-                            
-                            <div className="mt-4 md:mt-0">
-                              <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
-                                Accept Challenge
-                              </Button>
-                            </div>
                           </div>
-                        </div>
-                      </Card>
-                    ))
-                  )}
-                </div>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                </RefreshOverlay>
               </TabsContent>
               
               {/* Leaderboard */}

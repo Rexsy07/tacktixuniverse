@@ -36,6 +36,7 @@ import AdminTournamentCreate from "./pages/AdminTournamentCreate";
 import AdminTournamentDetail from "./pages/AdminTournamentDetail";
 import AdminTournamentManage from "./pages/AdminTournamentManage";
 import TournamentDetail from "./pages/TournamentDetail";
+import TournamentBracket from "./pages/TournamentBracket";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +59,11 @@ const App = () => (
             <Route path="/games/:slug" element={<GameDetail />} />
             <Route path="/tournaments" element={<Tournaments />} />
             <Route path="/tournaments/:tournamentId" element={<TournamentDetail />} />
+            <Route path="/tournaments/:tournamentId/bracket" element={
+              <ProtectedRoute>
+                <TournamentBracket />
+              </ProtectedRoute>
+            } />
             <Route path="/leaderboards" element={<Leaderboards />} />
             <Route path="/how-it-works" element={<HowItWorksPage />} />
             <Route path="/support" element={<Support />} />

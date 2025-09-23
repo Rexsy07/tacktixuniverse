@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AdminSidebar from "@/components/AdminSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,13 +11,86 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, Percent, Clock, Shield, Bell, Palette, Save, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 
 const AdminSettings = () => {
   const navigate = useNavigate();
+  const { maintenanceMode: hookMaintenanceMode, feePercentage: hookFeePercentage, loading: settingsLoading, refetch } = usePlatformSettings();
   const [platformFee, setPlatformFee] = useState("5");
+  const [effectiveFee, setEffectiveFee] = useState<number>(5);
+  const [effectiveUpdatedAt, setEffectiveUpdatedAt] = useState<string>("");
+  const [feeHistory, setFeeHistory] = useState<{ fee_percentage: number; updated_at: string }[]>([]);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [autoPayouts, setAutoPayouts] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
+
+  const loadSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('platform_settings')
+        .select('fee_percentage, updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(10);
+      if (!error && data) {
+        if (data.length > 0) {
+          setEffectiveFee(data[0].fee_percentage ?? 5);
+          setEffectiveUpdatedAt(data[0].updated_at || "");
+          setPlatformFee(String(data[0].fee_percentage ?? 5));
+        }
+        setFeeHistory(data);
+      }
+    } catch (e) {
+      console.warn('Could not fetch platform_settings');
+    }
+  };
+
+  // Sync local state with hook values
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
+    if (!settingsLoading) {
+      setMaintenanceMode(hookMaintenanceMode);
+      setPlatformFee(String(hookFeePercentage));
+      setEffectiveFee(hookFeePercentage);
+    }
+  }, [hookMaintenanceMode, hookFeePercentage, settingsLoading]);
+
+  const handleMaintenanceModeChange = async (checked: boolean) => {
+    try {
+      setMaintenanceMode(checked);
+      
+      // Get the most recent settings row to update, or create new one
+      const { data: existingSettings } = await supabase
+        .from('platform_settings')
+        .select('id')
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      
+      if (existingSettings && existingSettings.length > 0) {
+        // Update existing row
+        const { error } = await supabase
+          .from('platform_settings')
+          .update({ maintenance_mode: checked })
+          .eq('id', existingSettings[0].id);
+        if (error) throw error;
+      } else {
+        // Insert new row
+        const { error } = await supabase
+          .from('platform_settings')
+          .insert({ maintenance_mode: checked });
+        if (error) throw error;
+      }
+      
+      toast.success(`Maintenance mode ${checked ? 'enabled' : 'disabled'}`);
+      refetch(); // Refresh the hook data
+    } catch (e: any) {
+      setMaintenanceMode(!checked); // Revert on error
+      toast.error(e.message || 'Failed to update maintenance mode');
+    }
+  };
 
   const handleSaveAllChanges = () => {
     toast.success("All settings saved successfully");
@@ -86,7 +159,7 @@ const AdminSettings = () => {
                     </div>
                     <Switch 
                       checked={maintenanceMode} 
-                      onCheckedChange={setMaintenanceMode}
+                      onCheckedChange={handleMaintenanceModeChange}
                     />
                   </div>
 
@@ -120,6 +193,53 @@ const AdminSettings = () => {
                         max="20"
                       />
                       <p className="text-sm text-muted-foreground mt-1">Commission taken from each match</p>
+                      <div className="mt-3">
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              const pct = Math.max(0, Math.min(50, parseFloat(platformFee || '0')));
+                              
+                              // Get the most recent settings row to update, or create new one
+                              const { data: existingSettings } = await supabase
+                                .from('platform_settings')
+                                .select('id')
+                                .order('updated_at', { ascending: false })
+                                .limit(1);
+                              
+                              if (existingSettings && existingSettings.length > 0) {
+                                // Update existing row
+                                const { error } = await supabase
+                                  .from('platform_settings')
+                                  .update({ fee_percentage: pct })
+                                  .eq('id', existingSettings[0].id);
+                                if (error) throw error;
+                              } else {
+                                // Insert new row
+                                const { error } = await supabase
+                                  .from('platform_settings')
+                                  .insert({ fee_percentage: pct });
+                                if (error) throw error;
+                              }
+                              
+                              toast.success('Platform fee updated');
+                              await loadSettings();
+                              refetch(); // Refresh the hook data
+                            } catch (e: any) {
+                              toast.error(e.message || 'Failed to update platform fee');
+                            }
+                          }}
+                        >
+                          Save Fee
+                        </Button>
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Effective Fee</Label>
+                      <div className="mt-2 p-3 border rounded-lg">
+                        <div className="text-2xl font-bold">{effectiveFee}%</div>
+                        <div className="text-xs text-muted-foreground">Last updated: {effectiveUpdatedAt ? new Date(effectiveUpdatedAt).toLocaleString() : '—'}</div>
+                      </div>
                     </div>
                     <div>
                       <Label htmlFor="tournament-fee">Tournament Fee (%)</Label>
@@ -165,6 +285,30 @@ const AdminSettings = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Clock className="h-5 w-5 mr-2" />
+                    Fee Change History
+                  </CardTitle>
+                  <CardDescription>Recent updates to the platform fee</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {feeHistory.length === 0 ? (
+                    <div className="text-muted-foreground">No history yet</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {feeHistory.map((row, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 border rounded">
+                          <div className="font-medium">{row.fee_percentage}%</div>
+                          <div className="text-xs text-muted-foreground">{new Date(row.updated_at).toLocaleString()}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

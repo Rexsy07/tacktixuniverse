@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import { useTournaments, useUserTournaments } from "@/hooks/useTournaments";
 import { useAuth } from "@/hooks/useAuth";
 
 const DashboardTournaments = () => {
+  const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState("available");
   const { user } = useAuth();
   const { tournaments, loading: tournamentsLoading, registerForTournament } = useTournaments();
@@ -236,7 +238,12 @@ const DashboardTournaments = () => {
                     </div>
                     
                     <div className="flex gap-2">
-                      <Button variant="outline">View Bracket</Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => navigate(`/tournaments/${tournament.id}/bracket`)}
+                      >
+                        View Bracket
+                      </Button>
                       {tournament.status === "live" && (
                         <Button className="bg-gradient-to-r from-primary to-accent">
                           View Next Match
