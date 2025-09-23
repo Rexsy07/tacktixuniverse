@@ -26,7 +26,8 @@
 
   <body>
     <div id="root"></div>
-    <!-- Runtime env injection for GitHub Pages (window.__ENV) -->
+    <!-- Runtime env injection for GitHub Pages (window.__ENV). Include both absolute and relative paths so it works on deep routes. -->
+    <script src="/tacktixuniverse/env.js"></script>
     <script src="env.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
