@@ -4,7 +4,7 @@ import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { isTeamFormat } from '@/utils/gameFormats';
+import { isTeamFormat, getTeamSizes } from '@/utils/gameFormats';
 
 interface ChallengeData {
   gameId: string;
@@ -69,7 +69,10 @@ export function useCreateChallenge() {
 
       // For team-based matches, add invited team members if provided (optional)
       if (isTeamFormat(challengeData.format) && challengeData.teamMembers?.length) {
-        const teamMembers = challengeData.teamMembers.map(memberId => ({
+        const { a: teamASize } = getTeamSizes(challengeData.format);
+        const allowed = Math.max(teamASize - 1, 0); // minus captain
+        const trimmed = challengeData.teamMembers.slice(0, allowed);
+        const teamMembers = trimmed.map(memberId => ({
           match_id: matchId,
           user_id: memberId,
           team: 'A' as const,

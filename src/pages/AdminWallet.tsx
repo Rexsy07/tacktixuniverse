@@ -60,9 +60,9 @@ const AdminWallet = () => {
           amount: w.amount,
           status: w.status,
           submittedAt: w.created_at,
-          accountName: w.metadata?.account_name,
-          accountNumber: w.metadata?.account_number,
-          bankName: w.metadata?.bank_name
+          accountName: w.metadata?.account_name ?? w.metadata?.accountName,
+          accountNumber: w.metadata?.account_number ?? w.metadata?.accountNumber,
+          bankName: w.metadata?.bank_name ?? w.metadata?.bankName
         })));
       } catch (e) {
         console.error('Error loading transactions:', e);
@@ -79,16 +79,14 @@ const AdminWallet = () => {
       case "pending": return "bg-warning text-warning-foreground";
       case "processing": return "bg-primary text-primary-foreground";
       case "rejected": return "bg-destructive text-destructive-foreground";
+      case "failed": return "bg-destructive text-destructive-foreground";
       default: return "bg-muted text-muted-foreground";
     }
   };
 
   const handleApproveDeposit = async (id: string) => {
-    const { error } = await supabase
-      .from('transactions')
-      .update({ status: 'completed', processed_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('type', 'deposit');
+    // Atomically complete deposit and credit wallet balance via RPC
+    const { error } = await supabase.rpc('admin_complete_deposit', { p_tx_id: id });
     if (error) return toast.error(error.message);
     toast.success(`Deposit ${id} approved successfully`);
     setDepositRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'completed' } : r));
@@ -105,26 +103,20 @@ const AdminWallet = () => {
     setDepositRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'failed' } : r));
   };
 
-  const handleProcessWithdrawal = async (id: string) => {
-    const { error } = await supabase
-      .from('transactions')
-      .update({ status: 'pending', processed_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('type', 'withdrawal');
+  const handleAcceptWithdrawal = async (id: string) => {
+    // Accept the withdrawal: atomically debit wallet and complete tx
+    const { error } = await supabase.rpc('admin_complete_withdrawal', { p_tx_id: id });
     if (error) return toast.error(error.message);
-    toast.success(`Withdrawal ${id} marked as processing`);
-    setWithdrawalRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'pending' } : r));
+    toast.success(`Withdrawal ${id} approved`);
+    setWithdrawalRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'completed' } : r));
   };
 
-  const handleCompleteWithdrawal = async (id: string) => {
-    const { error } = await supabase
-      .from('transactions')
-      .update({ status: 'completed', processed_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('type', 'withdrawal');
+  const handleRejectWithdrawal = async (id: string) => {
+    // Deny the withdrawal: mark as failed (no wallet change)
+    const { error } = await supabase.rpc('admin_reject_withdrawal', { p_tx_id: id, p_reason: null });
     if (error) return toast.error(error.message);
-    toast.success(`Withdrawal ${id} marked as completed`);
-    setWithdrawalRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'completed' } : r));
+    toast.error(`Withdrawal ${id} denied`);
+    setWithdrawalRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'failed' } : r));
   };
 
   return (
@@ -357,11 +349,18 @@ const AdminWallet = () => {
                       Pending
                     </Button>
                     <Button
-                      variant={filterStatus === "processing" ? "default" : "outline"}
+                      variant={filterStatus === "completed" ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setFilterStatus("processing")}
+                      onClick={() => setFilterStatus("completed")}
                     >
-                      Processing
+                      Completed
+                    </Button>
+                    <Button
+                      variant={filterStatus === "failed" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setFilterStatus("failed")}
+                    >
+                      Denied
                     </Button>
                   </div>
                 </div>
@@ -412,27 +411,26 @@ const AdminWallet = () => {
                       </div>
                     </div>
                     
-                    <div className="flex gap-2">
+                  <div className="flex gap-2">
                       {request.status === "pending" && (
-                        <Button
-                          onClick={() => handleProcessWithdrawal(request.id)}
-                          className="bg-primary hover:bg-primary/80"
-                          size="sm"
-                        >
-                          <Clock className="mr-2 h-4 w-4" />
-                          Process
-                        </Button>
-                      )}
-                      
-                      {request.status === "processing" && (
-                        <Button
-                          onClick={() => handleCompleteWithdrawal(request.id)}
-                          className="bg-success hover:bg-success/80"
-                          size="sm"
-                        >
-                          <Check className="mr-2 h-4 w-4" />
-                          Mark as Paid
-                        </Button>
+                        <>
+                          <Button
+                            onClick={() => handleAcceptWithdrawal(request.id)}
+                            className="bg-success hover:bg-success/80"
+                            size="sm"
+                          >
+                            <Check className="mr-2 h-4 w-4" />
+                            Accept
+                          </Button>
+                          <Button
+                            onClick={() => handleRejectWithdrawal(request.id)}
+                            variant="destructive"
+                            size="sm"
+                          >
+                            <X className="mr-2 h-4 w-4" />
+                            Deny
+                          </Button>
+                        </>
                       )}
                       
                       <Button 

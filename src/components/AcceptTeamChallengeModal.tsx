@@ -50,6 +50,7 @@ export function AcceptTeamChallengeModal({
           <TeamManagement
             format={format}
             onTeamUpdate={setTeamMembers}
+            side="B"
           />
         </div>
 

@@ -37,6 +37,7 @@ import AdminTournamentDetail from "./pages/AdminTournamentDetail";
 import AdminTournamentManage from "./pages/AdminTournamentManage";
 import TournamentDetail from "./pages/TournamentDetail";
 import TournamentBracket from "./pages/TournamentBracket";
+import AdminWithdrawalDetail from "./pages/AdminWithdrawalDetail";
 
 const queryClient = new QueryClient();
 
@@ -123,6 +124,11 @@ const App = () => (
             <Route path="/admin/wallet" element={
               <ProtectedRoute requireAdmin>
                 <AdminWallet />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/wallet/withdrawal/:txId" element={
+              <ProtectedRoute requireAdmin>
+                <AdminWithdrawalDetail />
               </ProtectedRoute>
             } />
             <Route path="/admin/matches" element={

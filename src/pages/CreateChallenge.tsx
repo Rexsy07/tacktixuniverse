@@ -59,6 +59,21 @@ const CreateChallenge = () => {
     if (!selectedGame || !selectedMode) {
       return [];
     }
+
+    // Prefer DB-provided formats for the selected mode if available
+    if (Array.isArray((selectedMode as any).formats)) {
+      const raw = (selectedMode as any).formats as any[];
+      const normalized = Array.from(new Set(
+        raw.flatMap((f: any) => String(f).split(','))
+          .map((s: string) => s.trim())
+          .filter(Boolean)
+      ));
+      if (normalized.length > 0) {
+        return normalized;
+      }
+    }
+
+    // Fallback to curated mapping
     return getAvailableFormats(selectedGame.name, selectedMode.name);
   }, [selectedGame, selectedMode]);
 
@@ -67,8 +82,9 @@ const CreateChallenge = () => {
     if (!challengeData.format || !selectedGame || !selectedMode) {
       return true; // No format selected yet or missing data
     }
-    return isValidFormat(selectedGame.name, selectedMode.name, challengeData.format);
-  }, [challengeData.format, selectedGame, selectedMode]);
+    // Validate against available formats derived above
+    return availableFormats.includes(challengeData.format);
+  }, [challengeData.format, selectedGame, selectedMode, availableFormats]);
 
   // Fetch game modes when game is selected
   useEffect(() => {

@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getTeamSizes } from "@/utils/gameFormats";
 
 interface TeamMember {
   user_id: string;
@@ -17,17 +18,19 @@ interface TeamMember {
 interface TeamManagementProps {
   format: string;
   onTeamUpdate: (members: string[]) => void;
+  side?: 'A' | 'B'; // Which team this management applies to
 }
 
-export function TeamManagement({ format, onTeamUpdate }: TeamManagementProps) {
+export function TeamManagement({ format, onTeamUpdate, side = 'A' }: TeamManagementProps) {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<TeamMember[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<TeamMember[]>([]);
 
-  const teamSize = parseInt(format.split('v')[0]);
-  const remainingSlots = teamSize - selectedMembers.length - 1; // -1 for the captain
+  const { a: teamASize, b: teamBSize } = getTeamSizes(format);
+  const currentTeamSize = side === 'A' ? teamASize : teamBSize;
+  const remainingSlots = currentTeamSize - selectedMembers.length - 1; // -1 for the captain
 
   const searchUsers = async (query: string) => {
     if (query.length < 3) {
@@ -61,8 +64,8 @@ export function TeamManagement({ format, onTeamUpdate }: TeamManagementProps) {
   };
 
   const addMember = (member: TeamMember) => {
-    if (selectedMembers.length >= teamSize - 1) {
-      toast.error(`Team is already full (${teamSize} players including you)`);
+    if (selectedMembers.length >= currentTeamSize - 1) {
+      toast.error(`Team is already full (${currentTeamSize} players including you)`);
       return;
     }
 

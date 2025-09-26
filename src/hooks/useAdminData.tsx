@@ -224,6 +224,26 @@ export const useAdminUsers = () => {
       if (rolesErr && rolesErr.code !== 'PGRST205') throw rolesErr;
       const userIdToRole = new Map<string, any>((rolesData || []).map(r => [r.user_id, r]));
 
+      // Fetch user flags (suspension)
+      let userIdToFlags = new Map<string, any>();
+      try {
+        const { data: flagsData, error: flagsErr } = await supabase
+          .from('user_flags')
+          .select('*')
+          .in('user_id', userIds);
+        if (flagsErr && flagsErr.code === 'PGRST205') {
+          console.warn('user_flags table not found, defaulting to not suspended');
+          userIdToFlags = new Map<string, any>();
+        } else if (flagsErr) {
+          throw flagsErr;
+        } else {
+          userIdToFlags = new Map<string, any>((flagsData || []).map((f: any) => [f.user_id, f]));
+        }
+      } catch (err: any) {
+        console.warn('Could not fetch user flags:', err.message);
+        userIdToFlags = new Map<string, any>();
+      }
+
       // Fetch last activity (latest match for each user)
       const { data: activityMatches } = await supabase
         .from('matches')
@@ -241,12 +261,15 @@ export const useAdminUsers = () => {
         const userStats = userIdToStats.get(profile.user_id);
         const userWallet = userIdToWallet.get(profile.user_id);
         const userRole = userIdToRole.get(profile.user_id);
+        const userFlags = userIdToFlags.get(profile.user_id);
+        const isSuspended = !!userFlags?.is_suspended;
         return {
-          id: profile.id,
+          // Use auth user_id for all admin actions and linking
+          id: profile.user_id,
           username: profile.username || 'Anonymous',
           email: `${profile.username || 'user'}@example.com`,
           joinDate: profile.created_at,
-          status: 'active',
+          status: isSuspended ? 'suspended' : 'active',
           role: userRole?.role || 'user',
           matches: userStats?.total_matches || 0,
           winRate: userStats?.total_matches ? Math.round((userStats.total_wins / userStats.total_matches) * 100) : 0,

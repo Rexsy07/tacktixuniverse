@@ -58,12 +58,65 @@ const GameDetail = () => {
       setLoading(true);
 
       // Fetch game data (support short_name, id, or name fragment)
-      const normalized = (slug as string).replace(/-/g, ' ');
-      const { data: game, error: gameError } = await supabase
-        .from('games')
-        .select('*')
-        .or(`short_name.eq.${slug},id.eq.${slug},name.ilike.*${normalized}*`)
-        .maybeSingle();
+      const normalized = (slug as string).replace(/-/g, ' ').trim();
+
+      const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(slug as string);
+
+      let game: any = null;
+      let gameError: any = null;
+
+      if (isUuid) {
+        const { data, error } = await supabase
+          .from('games')
+          .select('*')
+          .eq('id', slug)
+          .maybeSingle();
+        game = data;
+        gameError = error;
+      } else {
+        // Try matching by short_name (case-insensitive), then by name
+        let res = await supabase
+          .from('games')
+          .select('*')
+          .ilike('short_name', slug as string)
+          .maybeSingle();
+
+        if (!res.data) {
+          res = await supabase
+            .from('games')
+            .select('*')
+            .ilike('short_name', normalized)
+            .maybeSingle();
+        }
+
+        if (!res.data) {
+          // In case of stray spaces or punctuation in short_name, match contains
+          res = await supabase
+            .from('games')
+            .select('*')
+            .ilike('short_name', `%${normalized}%`)
+            .maybeSingle();
+        }
+
+        if (!res.data) {
+          res = await supabase
+            .from('games')
+            .select('*')
+            .ilike('name', normalized)
+            .maybeSingle();
+        }
+
+        if (!res.data) {
+          res = await supabase
+            .from('games')
+            .select('*')
+            .ilike('name', `%${normalized}%`)
+            .maybeSingle();
+        }
+
+        game = res.data;
+        gameError = res.error;
+      }
 
       if (gameError || !game) {
         console.error('Game not found with slug or name:', { slug, error: gameError });
@@ -79,6 +132,14 @@ const GameDetail = () => {
       if (modesError) {
         console.error('Error fetching game modes:', modesError);
       }
+
+      // Normalize formats: split entries containing commas into separate items, trim, dedupe
+      const normalizedModes = (modes || []).map((m: any) => ({
+        ...m,
+        formats: Array.isArray(m.formats)
+          ? Array.from(new Set(m.formats.flatMap((f: any) => String(f).split(',')).map((s: string) => s.trim()).filter(Boolean)))
+          : []
+      }));
 
       // Fetch active matches count
       const { count: activeMatches } = await supabase
@@ -110,14 +171,14 @@ const GameDetail = () => {
       
       setGameData({
         ...game,
-        modes: modes || [],
+        modes: normalizedModes,
         cover: gameCovers[slug as string] || codmCover,
         playersOnline: onlinePlayers || 0,
         activeMatches: activeMatches || 0,
         avgStake: `₦${Math.round(avgStake)}`
       });
 
-      setGameModes(modes || []);
+      setGameModes(normalizedModes);
 
     } catch (error) {
       console.error('Error fetching game data:', error);

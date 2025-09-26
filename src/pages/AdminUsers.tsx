@@ -33,7 +33,7 @@ const AdminUsers = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const { users, loading, changeUserRole, suspendUser } = useAdminUsers();
+  const { users, loading, changeUserRole, suspendUser, refetch } = useAdminUsers();
   const [adjustUserId, setAdjustUserId] = useState<string | null>(null);
   const [adjustAmount, setAdjustAmount] = useState<string>('0');
   const [adjustReason, setAdjustReason] = useState<string>('');
@@ -80,6 +80,7 @@ const AdminUsers = () => {
         .upsert({ user_id: userId, is_suspended: false, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
       if (error) throw error;
       toast.success(`User ${username} has been reactivated`);
+      await refetch();
     } catch (e: any) {
       toast.error(e.message || 'Failed to reactivate user');
     }
@@ -368,6 +369,7 @@ const AdminUsers = () => {
                 .upsert({ user_id: suspendUserId, is_suspended: true, notes: suspendReason, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
               if (error) throw error;
               toast.success('User suspended');
+              await refetch();
               setSuspendUserId(null);
               setSuspendReason('');
             } catch (e: any) {

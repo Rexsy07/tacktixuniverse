@@ -67,8 +67,13 @@ export function useTeamParticipation() {
         return false;
       }
 
-      // Validate team size
-      const requiredTeamSize = parseInt(match.format.split('v')[0]);
+      // Validate team size for the opponent captain (Team B by default when accepting)
+      const parts = (match.format || '').split('v');
+      let requiredTeamSize = 1;
+      if (parts.length === 2) {
+        const b = parseInt(parts[1], 10);
+        if (!Number.isNaN(b) && b > 0) requiredTeamSize = b;
+      }
       if (teamMembers.length + 1 !== requiredTeamSize) { // +1 for the captain
         toast.error(`You need exactly ${requiredTeamSize - 1} team members for a ${match.format} match`);
         return false;

@@ -198,16 +198,41 @@ const MatchDetail = () => {
     }
   };
 
+  // Sanitize file names for Supabase Storage (avoid spaces/special chars)
+  const sanitizeFileName = (name: string) => {
+    const parts = name.split('.');
+    const ext = parts.length > 1 ? parts.pop() : undefined;
+    const base = parts.join('.')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9\-_.]/g, '');
+    return ext ? `${base}.${ext.toLowerCase()}` : base;
+  };
+
   const handleUploadProof = async () => {
     if (!user || !match || !file) return;
     try {
       setUploading(true);
+
+      // Basic client-side validation
+      if (file.size === 0) {
+        throw new Error('Selected file is empty. Please choose another file.');
+      }
+
       const role = match.creator_id === user.id ? 'creator' : 'opponent';
-      const path = `${match.id}/${role}-${user.id}-${Date.now()}-${file.name}`;
+      const safeName = sanitizeFileName(file.name);
+      // Store proofs under a user-specific prefix to satisfy common Storage RLS policies
+      // (e.g., name LIKE auth.uid() || '/%'). Also avoid upsert to not require UPDATE privilege.
+      const path = `${user.id}/${match.id}-${role}-${Date.now()}-${safeName}`;
 
       const { data: upload, error: uploadError } = await supabase.storage
         .from('match-proofs')
-        .upload(path, file, { upsert: false });
+        .upload(path, file, {
+          upsert: false,
+          contentType: file.type || 'application/octet-stream',
+          cacheControl: '3600',
+        });
 
       if (uploadError) throw uploadError;
 
@@ -215,7 +240,7 @@ const MatchDetail = () => {
         .from('match-proofs')
         .getPublicUrl(upload.path);
 
-      const update: any = role === 'creator' 
+      const update: any = role === 'creator'
         ? { creator_proof_url: url.publicUrl }
         : { opponent_proof_url: url.publicUrl };
 
@@ -235,6 +260,7 @@ const MatchDetail = () => {
       setFile(null);
       fetchMatchDetails();
     } catch (err: any) {
+      console.error('Upload proof error:', err);
       toast.error(err.message || 'Upload failed');
     } finally {
       setUploading(false);

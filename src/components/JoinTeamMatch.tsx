@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMatchParticipants } from "@/hooks/useMatchParticipants";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getTeamSizes } from "@/utils/gameFormats";
 
 interface JoinTeamMatchProps {
   matchId: string;
@@ -21,9 +22,9 @@ const JoinTeamMatch = ({ matchId, format, creatorId, onJoinSuccess }: JoinTeamMa
   const { teamStructure, loading, refetch } = useMatchParticipants(matchId);
   const [joining, setJoining] = useState(false);
 
-  const teamSize = parseInt(format.split('v')[0]);
-  const teamASlots = teamSize - teamStructure.teamA.length;
-  const teamBSlots = teamSize - teamStructure.teamB.length;
+  const { a: teamASize, b: teamBSize } = getTeamSizes(format);
+  const teamASlots = Math.max(teamASize - teamStructure.teamA.length, 0);
+  const teamBSlots = Math.max(teamBSize - teamStructure.teamB.length, 0);
 
   // Check if current user is already in the match
   const isUserInMatch = [...teamStructure.teamA, ...teamStructure.teamB].some(
@@ -104,7 +105,7 @@ const JoinTeamMatch = ({ matchId, format, creatorId, onJoinSuccess }: JoinTeamMa
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-blue-500 rounded"></div>
               <h4 className="font-semibold text-blue-600">
-                Team A ({teamStructure.teamA.length}/{teamSize})
+                Team A ({teamStructure.teamA.length}/{teamASize})
               </h4>
             </div>
             {teamASlots > 0 && !isCreator && (
@@ -155,7 +156,7 @@ const JoinTeamMatch = ({ matchId, format, creatorId, onJoinSuccess }: JoinTeamMa
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-red-500 rounded"></div>
               <h4 className="font-semibold text-red-600">
-                Team B ({teamStructure.teamB.length}/{teamSize})
+                Team B ({teamStructure.teamB.length}/{teamBSize})
               </h4>
             </div>
             {teamBSlots > 0 && !isCreator && (
