@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useGames } from "@/hooks/useGames";
+import { withBase } from "@/utils/url";
 
 const Games = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -86,7 +87,7 @@ const Games = () => {
                   <Card className="glass-card game-card overflow-hidden group">
                   <div className="relative">
                     <img 
-                      src={game.cover} 
+                      src={withBase(game.cover)} 
                       alt={game.name}
                       className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-110"
                     />

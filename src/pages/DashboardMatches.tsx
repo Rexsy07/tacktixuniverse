@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getFormatDisplayName, isTeamFormat } from "@/utils/gameFormats";
+import { withBase } from "@/utils/url";
 
 interface DashboardLayoutProps {
   title: string;
@@ -177,7 +178,7 @@ const DashboardMatches = () => {
                       <AspectRatio ratio={16/6}>
                         {match.games?.cover_image_url ? (
                           <img
-                            src={match.games.cover_image_url}
+                            src={withBase(match.games.cover_image_url)}
                             alt={match.games?.name || 'Game'}
                             className="h-full w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
                             loading="lazy"
@@ -304,7 +305,7 @@ const DashboardMatches = () => {
                       <AspectRatio ratio={16/6}>
                         {challenge.games?.cover_image_url ? (
                           <img
-                            src={challenge.games.cover_image_url}
+                            src={withBase(challenge.games.cover_image_url)}
                             alt={challenge.games?.name || 'Game'}
                             className="h-full w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
                             loading="lazy"

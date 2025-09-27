@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Play, Users, Trophy, Target } from "lucide-react";
 import { useGames } from "@/hooks/useGames";
+import { withBase } from "@/utils/url";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { GameCardSkeleton } from "@/components/ui/loading-skeletons";
@@ -69,7 +70,7 @@ const GamesGrid = () => {
                   {/* Game Cover */}
                   <div className="relative overflow-hidden">
                     <img
-                      src={game.cover_image_url}
+                      src={withBase(game.cover_image_url)}
                       alt={game.name}
                       className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-110"
                     />
