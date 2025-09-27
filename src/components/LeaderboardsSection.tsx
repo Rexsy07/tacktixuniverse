@@ -86,7 +86,7 @@ const LeaderboardsSection = () => {
 
         {/* Tabs */}
         <div className="flex justify-center mb-8">
-          <div className="glass-card p-2 flex gap-2">
+          <div className="glass-card p-2 flex flex-wrap justify-center gap-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -101,7 +101,7 @@ const LeaderboardsSection = () => {
                   }`}
                 >
                   <Icon className="h-4 w-4" />
-                  <span>{tab.name}</span>
+                  <span className="truncate">{tab.name}</span>
                 </Button>
               );
             })}
@@ -142,11 +142,11 @@ const LeaderboardsSection = () => {
                     getLeaderboardData().map((player) => (
                       <div 
                         key={player.rank}
-                        className={`flex items-center justify-between p-4 rounded-lg transition-all duration-300 hover:bg-muted/20 ${
+                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-4 rounded-lg transition-all duration-300 hover:bg-muted/20 overflow-hidden ${
                           player.rank <= 3 ? 'glass glow-primary' : 'bg-muted/10'
                         }`}
                       >
-                        <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-4 min-w-0 flex-1">
                           {/* Rank */}
                           <div className="flex items-center justify-center w-10 h-10">
                             {getRankIcon(player.rank)}
@@ -160,10 +160,10 @@ const LeaderboardsSection = () => {
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <div className="font-semibold flex items-center space-x-2">
-                                <span>{player.username}</span>
+                              <div className="font-semibold flex items-center space-x-2 min-w-0">
+                                <span className="truncate">{player.username}</span>
                                 {player.badge && (
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant="outline" className="text-xs shrink-0">
                                     {player.badge}
                                   </Badge>
                                 )}
@@ -176,8 +176,8 @@ const LeaderboardsSection = () => {
                         </div>
 
                         {/* Earnings */}
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-primary">
+                        <div className="text-left sm:text-right w-full sm:w-auto sm:flex-none">
+                          <div className="text-base sm:text-lg font-bold text-primary sm:max-w-[16ch] sm:truncate">
                             {player.earnings}
                           </div>
                           <div className="text-xs text-foreground/50">
