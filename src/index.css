@@ -50,6 +50,9 @@ All colors MUST be HSL.
     --input: 215 25% 15%;
     --ring: 213 94% 68%;
 
+    /* Global border width (overridable) */
+    --border-width: 1px;
+
     /* Gaming Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(213 94% 68%), hsl(283 89% 74%));
     --gradient-hero: linear-gradient(135deg, hsl(213 94% 68%) 0%, hsl(243 75% 59%) 35%, hsl(283 89% 74%) 100%);
@@ -99,7 +102,7 @@ All colors MUST be HSL.
   .glass {
     background: var(--gradient-glass);
     backdrop-filter: blur(20px);
-    border: 1px solid hsl(var(--border));
+    border: var(--border-width) solid hsl(var(--border));
     box-shadow: var(--shadow-glass);
   }
 
@@ -110,6 +113,32 @@ All colors MUST be HSL.
   .glass-button {
     @apply glass rounded-lg px-4 py-2 transition-all duration-300;
     backdrop-filter: blur(16px);
+  }
+
+  /* Leaderboards-specific border tuning */
+  #leaderboards .glass-card {
+    /* Slightly stronger border for the leaderboard cards on larger screens */
+    --border-width: 1.25px;
+  }
+
+  /* Mobile border compactness */
+  @media (max-width: 640px) {
+    :root {
+      /* Thinner borders and tighter radius site-wide on phones */
+      --border-width: 0.75px;
+      --radius: 0.5rem;
+    }
+
+    /* Keep leaderboard borders slim on phones */
+    #leaderboards .glass-card {
+      --border-width: 0.75px;
+    }
+
+    /* Slightly tighter rounding inside the leaderboard section */
+    #leaderboards .rounded-lg, 
+    #leaderboards .rounded-xl {
+      border-radius: calc(var(--radius) - 2px);
+    }
   }
 
   /* Glow Effects */

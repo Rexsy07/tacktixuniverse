@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   ArrowLeft, Clock, Users, Trophy, Target, 
   Upload, Eye, CheckCircle, XCircle, AlertTriangle,
-  Calendar, MapPin, Settings, Coins
+  Calendar, MapPin, Settings, Coins, Bell
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import TeamParticipants from "@/components/TeamParticipants";
 import JoinTeamMatch from "@/components/JoinTeamMatch";
 import { getFormatDisplayName, isTeamFormat } from "@/utils/gameFormats";
+import { useMatchParticipants } from "@/hooks/useMatchParticipants";
 
 interface MatchDetail {
   id: string;
@@ -79,6 +80,9 @@ const MatchDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+
+  // Load participants to allow team members to mark match as done
+  const { participants } = useMatchParticipants(matchId);
 
   useEffect(() => {
     if (matchId) {
@@ -179,6 +183,17 @@ const MatchDetail = () => {
            (match?.creator_id === user?.id || match?.opponent_id === user?.id);
   };
 
+  const isTeamParticipant = () => {
+    if (!user) return false;
+    return participants?.some(p => p.user_id === user.id) || false;
+  };
+
+  const canMarkDone = () => {
+    if (!match || !user) return false;
+    const isDirectParticipant = match.creator_id === user.id || match.opponent_id === user.id;
+    return match.status === 'in_progress' && (isDirectParticipant || isTeamParticipant());
+  };
+
   const canCancelMatch = () => {
     // Allow creator to cancel before an opponent joins
     return match?.status === 'awaiting_opponent' && match?.creator_id === user?.id;
@@ -264,6 +279,27 @@ const MatchDetail = () => {
       toast.error(err.message || 'Upload failed');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleMarkDone = async () => {
+    if (!user || !match) return;
+    try {
+      // Only allow transition from in_progress to pending_result
+      if (match.status !== 'in_progress') return;
+
+      const { error: updErr } = await supabase
+        .from('matches')
+        .update({ status: 'pending_result', updated_at: new Date().toISOString() })
+        .eq('id', match.id);
+
+      if (updErr) throw updErr;
+
+      toast.success('Notified admins. Awaiting winner selection.');
+      fetchMatchDetails();
+    } catch (err: any) {
+      console.error('Error marking match done:', err);
+      toast.error(err.message || 'Failed to notify admins');
     }
   };
 
@@ -561,6 +597,27 @@ const MatchDetail = () => {
                           {uploading ? 'Uploading...' : 'Upload Proof'}
                         </Button>
                       </div>
+                    )}
+
+                    {canMarkDone() && (
+                      <Button
+                        className="w-full bg-primary"
+                        onClick={handleMarkDone}
+                      >
+                        <Bell className="mr-2 h-4 w-4" />
+                        I'm Done — Notify Admin
+                      </Button>
+                    )}
+
+                    {match.status === 'pending_result' && (isCreator || isOpponent || isTeamParticipant()) && (
+                      <Button
+                        className="w-full"
+                        variant="secondary"
+                        disabled
+                      >
+                        <Clock className="mr-2 h-4 w-4" />
+                        Awaiting Admin Decision
+                      </Button>
                     )}
 
                     {canCancelMatch() && (

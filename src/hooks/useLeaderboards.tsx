@@ -102,14 +102,17 @@ export function useLeaderboards() {
 
       if (gamesError) throw gamesError;
 
-      // For each game, get top players based on matches in that game
+      // For each game, compute leaderboard based on net match winnings (sum of match_win transactions)
       const gameLeaderboardsData: { [gameId: string]: LeaderboardEntry[] } = {};
 
+      // Use default platform fee percentage for net-win calculation.
+      const FEE_PCT = 5; // falls back to 5% if settings not readable under RLS
+
       for (const game of games || []) {
-        // Get users who played this game and their stats
+        // Fetch completed matches for this game
         const { data: gameMatches, error: gameMatchesError } = await supabase
           .from('matches')
-          .select('creator_id, opponent_id, winner_id, stake_amount')
+          .select('id, creator_id, opponent_id, winner_id, stake_amount')
           .eq('game_id', game.id)
           .eq('status', 'completed');
 
@@ -118,8 +121,75 @@ export function useLeaderboards() {
           continue;
         }
 
-        // Process game-specific leaderboard (simplified version)
-        gameLeaderboardsData[game.id] = processedGlobal.slice(0, 20);
+        if (!gameMatches || gameMatches.length === 0) {
+          gameLeaderboardsData[game.id] = [];
+          continue;
+        }
+
+        // Aggregate per-user metrics for this game
+        const perUser = new Map<string, { total_earnings: number; total_matches: number; total_wins: number }>();
+
+        // Count matches, wins, and compute net winnings from matches (winner gets opponent stake minus fee)
+        for (const m of gameMatches) {
+          const participants = [m.creator_id, m.opponent_id].filter(Boolean) as string[];
+          for (const uid of participants) {
+            const curr = perUser.get(uid) || { total_earnings: 0, total_matches: 0, total_wins: 0 };
+            curr.total_matches += 1;
+            if (m.winner_id === uid) {
+              curr.total_wins += 1;
+              const netWin = m.stake_amount * (1 - FEE_PCT / 100);
+              curr.total_earnings += netWin;
+            }
+            perUser.set(uid, curr);
+          }
+        }
+
+        const userIds = Array.from(perUser.keys());
+        if (userIds.length === 0) {
+          gameLeaderboardsData[game.id] = [];
+          continue;
+        }
+
+        // Fetch profiles for display names
+        const { data: profilesForGame, error: profErr } = await supabase
+          .from('profiles')
+          .select('user_id, username, full_name')
+          .in('user_id', userIds);
+        if (profErr) {
+          console.warn(`Could not fetch profiles for ${game.name}:`, profErr.message);
+        }
+
+        const entries: LeaderboardEntry[] = userIds.map((uid) => {
+          const stats = perUser.get(uid)!;
+          const prof = (profilesForGame || []).find((p: any) => p.user_id === uid);
+          const total_matches = stats.total_matches;
+          const total_wins = stats.total_wins;
+          const total_losses = Math.max(total_matches - total_wins, 0);
+          const win_rate = total_matches > 0 ? (total_wins / total_matches) * 100 : 0;
+          return {
+            user_id: uid,
+            username: prof?.username || 'Anonymous',
+            full_name: prof?.full_name || 'Unknown Player',
+            total_matches,
+            total_wins,
+            total_losses,
+            win_rate,
+            total_earnings: Math.round((stats.total_earnings || 0) * 100) / 100,
+            current_streak: 0,
+            longest_win_streak: 0,
+          };
+        })
+          .filter((e) => e.total_earnings > 0 || e.total_matches > 0)
+          .sort((a, b) => (b.total_earnings - a.total_earnings));
+
+        // Assign ranks and badges
+        const withRanks = entries.slice(0, 50).map((e, idx) => ({
+          ...e,
+          rank: idx + 1,
+          badge: idx < 3 ? ['Champion', 'Runner-up', 'Third Place'][idx] : undefined,
+        }));
+
+        gameLeaderboardsData[game.id] = withRanks;
       }
 
       setGameLeaderboards(gameLeaderboardsData);

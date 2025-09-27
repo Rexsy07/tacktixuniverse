@@ -39,16 +39,15 @@ const LeaderboardsSection = () => {
         badge: index < 3 ? ['🏆 Champion', '💎 Elite', '⚡ Pro'][index] : undefined
       }));
     }
-    
-    // For game-specific leaderboards, use the global data for now
-    // In a real implementation, you'd have game-specific data
-    return globalLeaderboard.slice(0, 3).map((player, index) => ({
+
+    const entries = gameLeaderboards[activeTab] || [];
+    return entries.slice(0, 5).map((player, index) => ({
       rank: index + 1,
       username: player.username,
       earnings: `₦${player.total_earnings.toLocaleString()}`,
       matches: player.total_matches,
       winRate: Math.round(player.win_rate),
-      game: activeTab.toUpperCase()
+      badge: index < 3 ? ['🏆 Champion', '💎 Elite', '⚡ Pro'][index] : undefined
     }));
   };
 
@@ -116,8 +115,9 @@ const LeaderboardsSection = () => {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold">
-                    {activeTab === 'global' ? 'Top Earners This Month' : 
-                     activeTab === 'codm' ? 'CODM Champions' : 'PUBG Masters'}
+                    {activeTab === 'global' 
+                      ? 'Top Earners This Month' 
+                      : `${(games.find(g => g.id === activeTab)?.short_name || games.find(g => g.id === activeTab)?.name || 'Game')} Champions`}
                   </h3>
                   <Badge variant="secondary" className="text-xs">
                     Updated Live

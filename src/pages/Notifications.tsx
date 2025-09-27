@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useMatches } from "@/hooks/useMatches";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Bell, Trophy, Clock, CheckCircle, AlertTriangle, Sword, Gamepad2
 } from "lucide-react";
@@ -27,10 +28,35 @@ function formatAmount(amt?: number | null) {
 const Notifications = () => {
   const { user } = useAuth();
   const { matches, loading } = useMatches();
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
+
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      if (!user) return;
+      try {
+        setLoadingAnnouncements(true);
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .or(`audience.eq.all,target_user_id.eq.${user.id}`)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (error) throw error;
+        setAnnouncements(data || []);
+      } catch (e) {
+        console.warn('Failed to load announcements', e);
+        setAnnouncements([]);
+      } finally {
+        setLoadingAnnouncements(false);
+      }
+    };
+    fetchAnnouncements();
+  }, [user?.id]);
 
   const items = useMemo(() => {
     const now = Date.now();
-    return (matches || []).map((m) => {
+    const matchItems = (matches || []).map((m) => {
       const meta = statusMeta[m.status as keyof typeof statusMeta] || { label: m.status, color: "bg-muted", Icon: Bell };
       const youAreCreator = m.creator_id === user?.id;
       const youAreOpponent = m.opponent_id === user?.id;
@@ -85,7 +111,18 @@ const Notifications = () => {
         meta,
         recent,
       };
-    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    });
+
+    const announcementItems = (announcements || []).map((n) => ({
+      id: n.id,
+      created_at: n.created_at,
+      title: n.title,
+      message: n.message,
+      meta: { label: n.audience === 'all' ? 'Announcement' : 'Direct message', color: 'bg-accent/15 text-accent', Icon: Bell },
+      recent: Date.now() - new Date(n.created_at).getTime() < 1000*60*60*24,
+    }));
+
+    return [...announcementItems, ...matchItems].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [matches, user?.id]);
 
   return (
@@ -104,7 +141,7 @@ const Notifications = () => {
             </div>
 
             <Card className="p-4">
-              {loading ? (
+              {loading || loadingAnnouncements ? (
                 <div className="py-12 text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                 </div>

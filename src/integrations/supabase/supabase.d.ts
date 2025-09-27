@@ -7,6 +7,14 @@ declare module '@supabase/supabase-js' {
           Args: Record<string, never>;
           Returns: string;
         };
+        admin_set_user_role: {
+          Args: { p_target_user_id: string; p_role: 'user' | 'admin' };
+          Returns: null;
+        };
+        admin_get_user_roles: {
+          Args: { p_user_ids: string[] };
+          Returns: Array<{ id: string; user_id: string; role: 'user' | 'admin'; created_at: string }>;
+        };
         has_role: {
           Args: { role: string };
           Returns: boolean;

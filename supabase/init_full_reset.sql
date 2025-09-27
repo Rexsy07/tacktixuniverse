@@ -275,7 +275,8 @@ CREATE TABLE public.user_roles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   role public.app_role NOT NULL DEFAULT 'user',
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id)
 );
 
 -- gamer_tags
@@ -413,6 +414,22 @@ CREATE POLICY "users add their own achievements"
 CREATE POLICY "users view their own role"
   ON public.user_roles FOR SELECT USING (auth.uid() = user_id);
 
+-- User roles (admin manage)
+CREATE POLICY "admins can manage user roles"
+  ON public.user_roles FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.user_roles ur
+      WHERE ur.user_id = auth.uid() AND ur.role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.user_roles ur
+      WHERE ur.user_id = auth.uid() AND ur.role = 'admin'
+    )
+  );
+
 -- Gamer tags (public read; owner writes)
 CREATE POLICY "gamer tags are viewable by everyone"
   ON public.gamer_tags FOR SELECT USING (true);
@@ -487,12 +504,12 @@ VALUES
   ('League of Legends', 'LoL', 'Multiplayer online battle arena', 'https://example.com/lol.jpg');
 
 INSERT INTO public.game_modes (game_id, name, description, formats, maps)
-SELECT g.id, v.name, v.description, v.formats, v.maps
+SELECT g.id, v.name, v.description, v.formats::text[], v.maps::text[]
 FROM public.games g
 CROSS JOIN (
   VALUES 
-    ('Competitive','5v5 ranked play', ARRAY['5v5']::text[], NULL),
-    ('Casual','Chill mode', ARRAY['1v1','2v2','5v5']::text[], NULL),
-    ('1v1','Duel mode', ARRAY['1v1']::text[], NULL),
-    ('2v2','Doubles', ARRAY['2v2']::text[], NULL)
+    ('Competitive','5v5 ranked play', ARRAY['5v5']::text[], NULL::text[]),
+    ('Casual','Chill mode', ARRAY['1v1','2v2','5v5']::text[], NULL::text[]),
+    ('1v1','Duel mode', ARRAY['1v1']::text[], NULL::text[]),
+    ('2v2','Doubles', ARRAY['2v2']::text[], NULL::text[])
 ) AS v(name, description, formats, maps);

@@ -1,8 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Zap, CheckCircle, Lock, Clock, Users, Banknote, Award } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const TrustSection = () => {
+  const { isAdmin } = useAuth();
   const trustFeatures = [
     {
       icon: Lock,
@@ -115,26 +117,28 @@ const TrustSection = () => {
           })}
         </div>
 
-        {/* Security Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
-          {securityStats.map((stat, index) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={index} className="glass-card text-center">
-                <div className="p-6">
-                  <Icon className="h-8 w-8 mx-auto mb-3 text-primary" />
-                  <div className="text-2xl font-bold text-primary mb-1">
-                    {stat.value}
+        {/* Security Stats (Admin only) */}
+        {isAdmin && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
+            {securityStats.map((stat, index) => {
+              const Icon = stat.icon;
+              return (
+                <Card key={index} className="glass-card text-center">
+                  <div className="p-6">
+                    <Icon className="h-8 w-8 mx-auto mb-3 text-primary" />
+                    <div className="text-2xl font-bold text-primary mb-1">
+                      {stat.value}
+                    </div>
+                    <div className="font-semibold mb-1">{stat.label}</div>
+                    <div className="text-xs text-foreground/50">
+                      {stat.description}
+                    </div>
                   </div>
-                  <div className="font-semibold mb-1">{stat.label}</div>
-                  <div className="text-xs text-foreground/50">
-                    {stat.description}
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
 
         {/* How Security Works */}
         <Card className="glass-card mb-16">

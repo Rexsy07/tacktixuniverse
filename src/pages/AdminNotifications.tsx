@@ -10,22 +10,75 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Bell, Send, Users, AlertCircle, CheckCircle, Clock, Calendar, Edit } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminNotifications = () => {
   const navigate = useNavigate();
   const [notificationText, setNotificationText] = useState("");
   const [notificationTitle, setNotificationTitle] = useState("");
   const [selectedAudience, setSelectedAudience] = useState("");
+  const [targetQuery, setTargetQuery] = useState("");
+  const [sending, setSending] = useState(false);
 
-  const handleSendNotification = () => {
+  const handleSendNotification = async () => {
     if (!notificationTitle || !notificationText || !selectedAudience) {
       toast.error("Please fill in all fields");
       return;
     }
-    toast.success("Notification sent successfully");
-    setNotificationTitle("");
-    setNotificationText("");
-    setSelectedAudience("");
+
+    try {
+      setSending(true);
+      if (selectedAudience === 'all') {
+        const { error } = await supabase.from('notifications').insert({
+          title: notificationTitle,
+          message: notificationText,
+          audience: 'all',
+          target_user_id: null,
+        });
+        if (error) throw error;
+        toast.success("Sent to all users");
+      } else if (selectedAudience === 'user') {
+        if (!targetQuery.trim()) {
+          toast.error("Enter a username or user ID");
+          return;
+        }
+        // Try to resolve username to user_id, or accept direct user_id
+        let targetUserId = targetQuery.trim();
+        if (!/^([0-9a-f\-]{36})$/i.test(targetUserId)) {
+          const { data: prof, error: profErr } = await supabase
+            .from('profiles')
+            .select('user_id, username')
+            .ilike('username', targetUserId)
+            .limit(1)
+            .single();
+          if (profErr || !prof) {
+            toast.error("User not found by username");
+            return;
+          }
+          targetUserId = prof.user_id;
+        }
+        const { error } = await supabase.from('notifications').insert({
+          title: notificationTitle,
+          message: notificationText,
+          audience: 'user',
+          target_user_id: targetUserId,
+        });
+        if (error) throw error;
+        toast.success("Sent to user");
+      } else {
+        toast.error("Unsupported audience");
+        return;
+      }
+
+      setNotificationTitle("");
+      setNotificationText("");
+      setSelectedAudience("");
+      setTargetQuery("");
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to send notification');
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleScheduleNotification = () => {
@@ -139,18 +192,27 @@ const AdminNotifications = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Users</SelectItem>
-                      <SelectItem value="active">Active Players</SelectItem>
-                      <SelectItem value="premium">Premium Users</SelectItem>
-                      <SelectItem value="tournament">Tournament Players</SelectItem>
-                      <SelectItem value="unverified">Unverified Users</SelectItem>
+                      <SelectItem value="user">Individual User</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
+                {selectedAudience === 'user' && (
+                  <div>
+                    <Label htmlFor="target">Target User (username or user ID)</Label>
+                    <Input
+                      id="target"
+                      placeholder="e.g. johndoe or 550e8400-e29b-41d4-a716-446655440000"
+                      value={targetQuery}
+                      onChange={(e) => setTargetQuery(e.target.value)}
+                    />
+                  </div>
+                )}
+
                 <div className="flex space-x-2">
-                  <Button className="flex-1" onClick={handleSendNotification}>
+                  <Button className="flex-1" onClick={handleSendNotification} disabled={sending}>
                     <Send className="h-4 w-4 mr-2" />
-                    Send Now
+                    {sending ? 'Sending...' : 'Send Now'}
                   </Button>
                   <Button variant="outline" onClick={handleScheduleNotification}>
                     <Calendar className="h-4 w-4 mr-2" />

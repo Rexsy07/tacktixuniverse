@@ -39,6 +39,8 @@ export interface AdminMatch {
   duration_minutes?: number;
   created_at: string;
   winner?: string;
+  creator_id: string;
+  opponent_id?: string | null;
 }
 
 export interface AdminFees {
@@ -216,13 +218,11 @@ export const useAdminUsers = () => {
       if (walletsErr) throw walletsErr;
       const userIdToWallet = new Map<string, any>((walletsData || []).map(w => [w.user_id, w]));
 
-      // Fetch user roles
+      // Fetch user roles (via RPC to avoid RLS recursion)
       const { data: rolesData, error: rolesErr } = await supabase
-        .from('user_roles')
-        .select('*')
-        .in('user_id', userIds);
+        .rpc('admin_get_user_roles', { p_user_ids: userIds });
       if (rolesErr && rolesErr.code !== 'PGRST205') throw rolesErr;
-      const userIdToRole = new Map<string, any>((rolesData || []).map(r => [r.user_id, r]));
+      const userIdToRole = new Map<string, any>((rolesData || []).map((r: any) => [r.user_id, r]));
 
       // Fetch user flags (suspension)
       let userIdToFlags = new Map<string, any>();
@@ -293,12 +293,9 @@ export const useAdminUsers = () => {
   const changeUserRole = async (userId: string, newRole: 'user' | 'admin') => {
     try {
       const { error } = await supabase
-        .from('user_roles')
-        .upsert({
-          user_id: userId,
-          role: newRole
-        }, {
-          onConflict: 'user_id'
+        .rpc('admin_set_user_role', {
+          p_target_user_id: userId,
+          p_role: newRole
         });
 
       if (error) throw error;
@@ -379,7 +376,9 @@ export const useAdminMatches = () => {
         status: match.status,
         duration_minutes: match.duration_minutes,
         created_at: match.created_at,
-        winner: match.winner_id ? (profilesById.get(match.winner_id)?.username || 'Unknown') : undefined
+        winner: match.winner_id ? (profilesById.get(match.winner_id)?.username || 'Unknown') : undefined,
+        creator_id: match.creator_id,
+        opponent_id: match.opponent_id || null,
       }));
 
       setMatches(adminMatches);
@@ -394,6 +393,17 @@ export const useAdminMatches = () => {
 
   const resolveDispute = async (matchId: string, winnerId: string) => {
     try {
+      // Validate winnerId
+      if (!winnerId || typeof winnerId !== 'string' || winnerId.trim() === '') {
+        toast.error('Invalid winner. No user selected.');
+        return;
+      }
+      const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRe.test(winnerId)) {
+        toast.error('Invalid winner. Not a valid user ID.');
+        return;
+      }
+
       const { error } = await supabase
         .from('matches')
         .update({ 

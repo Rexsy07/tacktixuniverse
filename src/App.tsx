@@ -38,6 +38,14 @@ import AdminTournamentManage from "./pages/AdminTournamentManage";
 import TournamentDetail from "./pages/TournamentDetail";
 import TournamentBracket from "./pages/TournamentBracket";
 import AdminWithdrawalDetail from "./pages/AdminWithdrawalDetail";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import ResponsibleGaming from "./pages/ResponsibleGaming";
+import KYCPolicy from "./pages/KYCPolicy";
+import SupportFAQ from "./pages/SupportFAQ";
+import SupportContact from "./pages/SupportContact";
+import DisputeResolution from "./pages/DisputeResolution";
+import CommunityGuidelines from "./pages/CommunityGuidelines";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +76,14 @@ const App = () => (
             <Route path="/leaderboards" element={<Leaderboards />} />
             <Route path="/how-it-works" element={<HowItWorksPage />} />
             <Route path="/support" element={<Support />} />
+            <Route path="/support/faq" element={<SupportFAQ />} />
+            <Route path="/support/contact" element={<SupportContact />} />
+            <Route path="/support/disputes" element={<DisputeResolution />} />
+            <Route path="/support/guidelines" element={<CommunityGuidelines />} />
+            <Route path="/legal/terms" element={<TermsOfService />} />
+            <Route path="/legal/privacy" element={<PrivacyPolicy />} />
+            <Route path="/legal/responsible" element={<ResponsibleGaming />} />
+            <Route path="/legal/kyc" element={<KYCPolicy />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />

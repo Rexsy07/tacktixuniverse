@@ -211,6 +211,33 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          id: string
+          created_at: string
+          title: string
+          message: string
+          audience: 'all' | 'user'
+          target_user_id: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          title: string
+          message: string
+          audience: 'all' | 'user'
+          target_user_id?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          title?: string
+          message?: string
+          audience?: 'all' | 'user'
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       matches: {
         Row: {
           accepted_at: string | null

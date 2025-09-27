@@ -21,25 +21,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Function to check user role from database
-  const checkUserRole = async (userId: string) => {
+  // Allowlist fallback via environment for emergency access
+  const isEmailAllowlisted = (email?: string | null) => {
+    if (!email) return false;
+    const fromVite = (import.meta as any)?.env?.VITE_ADMIN_EMAILS as string | undefined;
+    const fromWindow = (window as any)?.__ENV?.ADMIN_EMAILS as string | undefined;
+    const list = (fromWindow || fromVite || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    return list.includes(email.toLowerCase());
+  };
+
+  // Function to check user role from database (with email allowlist fallback)
+  const checkUserRole = async (userId: string, email?: string | null) => {
     try {
+      // Prefer secure RPC which works even when RLS would block direct selects
+      const { data: hasAdmin, error: rpcError } = await supabase.rpc('has_role', { p_role: 'admin' });
+      if (!rpcError && typeof hasAdmin === 'boolean') {
+        setIsAdmin(hasAdmin || isEmailAllowlisted(email));
+        return;
+      }
+
+      // Fallback to direct select
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
       
       if (error) {
-        console.log('No role found for user, defaulting to user role');
-        setIsAdmin(false);
+        console.warn('Role query error:', error);
+        setIsAdmin(isEmailAllowlisted(email));
         return;
       }
       
-      setIsAdmin(data?.role === 'admin');
+      const adminFromDb = (data?.role as any) === 'admin';
+      const adminFromEmail = isEmailAllowlisted(email);
+      setIsAdmin(adminFromDb || adminFromEmail);
     } catch (err) {
       console.error('Error checking user role:', err);
-      setIsAdmin(false);
+      setIsAdmin(isEmailAllowlisted(email));
     }
   };
 
@@ -52,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Check user role from database
         if (session?.user) {
-          checkUserRole(session.user.id);
+          checkUserRole(session.user.id, session.user.email);
         } else {
           setIsAdmin(false);
         }
@@ -67,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        checkUserRole(session.user.id);
+        checkUserRole(session.user.id, session.user.email);
       }
       
       setLoading(false);
@@ -75,6 +97,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Realtime: update admin flag whenever the user's role row changes
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('user-role-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_roles',
+        filter: `user_id=eq.${user.id}`,
+      }, () => {
+        checkUserRole(user.id, user.email);
+      })
+      .subscribe();
+
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, [user?.id]);
+
+  // Also refresh role when tab becomes visible (covers cases where realtime is disabled)
+  useEffect(() => {
+    const handler = () => {
+      if (document.visibilityState === 'visible' && user?.id) {
+        checkUserRole(user.id, user.email);
+      }
+    };
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+  }, [user?.id]);
+
+  // Gentle polling for a short window after login/promotion to catch role changes
+  useEffect(() => {
+    if (!user?.id) return;
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts += 1;
+      if (attempts > 12) { // ~60s at 5s interval
+        clearInterval(interval);
+        return;
+      }
+      if (!isAdmin) {
+        await checkUserRole(user.id, user.email);
+      } else {
+        clearInterval(interval);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [user?.id, isAdmin]);
 
   const signUp = async (email: string, password: string, username: string, fullName: string) => {
     const redirectUrl = `${window.location.origin}/`;

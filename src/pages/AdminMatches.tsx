@@ -154,19 +154,21 @@ const AdminMatches = () => {
                       </Button>
                       {(['in_progress','pending_result','disputed'].includes(match.status)) && (
                         <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => handleResolveDispute(match.id, (match as any).creator_id || '')}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Set Winner: Creator
-                          </Button>
-                          {(match as any).opponent_id && (
+                          {match.creator_id && (
+                            <Button 
+                              size="sm" 
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => handleResolveDispute(match.id, match.creator_id)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Set Winner: Creator
+                            </Button>
+                          )}
+                          {match.opponent_id && (
                             <Button 
                               size="sm" 
                               className="bg-blue-600 hover:bg-blue-700 text-white"
-                              onClick={() => handleResolveDispute(match.id, (match as any).opponent_id || '')}
+                              onClick={() => handleResolveDispute(match.id, match.opponent_id!)}
                             >
                               <CheckCircle className="h-4 w-4 mr-1" />
                               Set Winner: Opponent

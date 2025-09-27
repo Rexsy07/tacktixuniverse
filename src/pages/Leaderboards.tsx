@@ -135,7 +135,7 @@ const Leaderboards = () => {
                         </div>
 
                         <div className="space-y-3">
-                          {(gameLeaderboards[game.id] || globalLeaderboard.slice(0, 3)).map((entry, index) => (
+                          {(gameLeaderboards[game.id] || []).slice(0, 3).map((entry, index) => (
                             <div key={entry.user_id} className="flex items-center justify-between p-2 glass rounded">
                               <div className="flex items-center gap-2">
                                 <div className="w-6 h-6 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">
