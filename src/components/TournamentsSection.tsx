@@ -92,9 +92,12 @@ const TournamentsSection = () => {
 
         {/* Tournaments Grid */}
         {tournamentsLoading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-foreground/70">Loading tournaments...</p>
+          <div className="app-grid mb-12">
+            {[...Array(6)].map((_, i) => (
+              <div key={`tour-skel-${i}`} className="card-slot card-slot--tournament">
+                <Card className="glass-card overflow-hidden" />
+              </div>
+            ))}
           </div>
         ) : tournaments.length === 0 ? (
           <div className="text-center py-12 mb-12">
@@ -104,70 +107,72 @@ const TournamentsSection = () => {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          <div className="app-grid mb-12 content-transition" style={{"--content-min-height": "420px"} as React.CSSProperties}>
             {tournaments.filter(t => t.status !== 'live').map((tournament) => (
-              <Card key={tournament.id} className="glass-card game-card overflow-hidden">
-                <div className="p-6">
-                {/* Tournament Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <Badge variant="secondary" className="font-semibold">
-                    {tournament.game}
-                  </Badge>
-                  <Badge className={`${getStatusColor(tournament.status)} text-white`}>
-                    {getStatusText(tournament.status)}
-                  </Badge>
+              <div key={tournament.id} className="card-slot card-slot--tournament">
+                <Card className="glass-card game-card overflow-hidden">
+                  <div className="p-6">
+                  {/* Tournament Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <Badge variant="secondary" className="font-semibold">
+                      {tournament.game}
+                    </Badge>
+                    <Badge className={`${getStatusColor(tournament.status)} text-white`}>
+                      {getStatusText(tournament.status)}
+                    </Badge>
+                  </div>
+
+                  {/* Tournament Title */}
+                  <h3 className="text-lg font-bold mb-2">{tournament.name}</h3>
+
+                  {/* Prize Pool */}
+                  <div className="text-center mb-4 p-3 glass rounded-lg">
+                    <div className="text-2xl font-bold text-primary mb-1">
+                      {tournament.prizePool}
+                    </div>
+                    <div className="text-sm text-foreground/70">Prize Pool</div>
+                  </div>
+
+                  {/* Tournament Details */}
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-foreground/70">Entry Fee:</span>
+                      <span className="font-semibold text-accent">{tournament.entryFee}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-foreground/70">Format:</span>
+                      <span className="font-semibold">{tournament.format}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-foreground/70">Players:</span>
+                      <span className="font-semibold">
+                        {tournament.participants}/{tournament.maxParticipants}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-foreground/70">Start Date:</span>
+                      <span className="font-semibold text-primary">{tournament.startDate}</span>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="mb-4">
+                    <div className="flex justify-between text-xs text-foreground/50 mb-1">
+                      <span>Registration</span>
+                      <span>{Math.round((tournament.participants / tournament.maxParticipants) * 100)}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-primary to-accent h-2 rounded-full"
+                        style={{ width: `${(tournament.participants / tournament.maxParticipants) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* No join/register actions on homepage */}
                 </div>
-
-                {/* Tournament Title */}
-                <h3 className="text-lg font-bold mb-2">{tournament.name}</h3>
-
-                {/* Prize Pool */}
-                <div className="text-center mb-4 p-3 glass rounded-lg">
-                  <div className="text-2xl font-bold text-primary mb-1">
-                    {tournament.prizePool}
-                  </div>
-                  <div className="text-sm text-foreground/70">Prize Pool</div>
-                </div>
-
-                {/* Tournament Details */}
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-foreground/70">Entry Fee:</span>
-                    <span className="font-semibold text-accent">{tournament.entryFee}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-foreground/70">Format:</span>
-                    <span className="font-semibold">{tournament.format}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-foreground/70">Players:</span>
-                    <span className="font-semibold">
-                      {tournament.participants}/{tournament.maxParticipants}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-foreground/70">Start Date:</span>
-                    <span className="font-semibold text-primary">{tournament.startDate}</span>
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-xs text-foreground/50 mb-1">
-                    <span>Registration</span>
-                    <span>{Math.round((tournament.participants / tournament.maxParticipants) * 100)}%</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div 
-                      className="bg-gradient-to-r from-primary to-accent h-2 rounded-full"
-                      style={{ width: `${(tournament.participants / tournament.maxParticipants) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                {/* No join/register actions on homepage */}
-              </div>
-            </Card>
+              </Card>
+            </div>
           ))}
           </div>
         )}

@@ -42,19 +42,33 @@ const JoinTeamMatch = ({ matchId, format, creatorId, onJoinSuccess }: JoinTeamMa
     try {
       setJoining(true);
 
-      // Add user to the selected team
-      const { error } = await supabase
-        .from('match_participants')
-        .insert({
-          match_id: matchId,
-          user_id: user.id,
-          team: team,
-          role: teamStructure[team === 'A' ? 'teamA' : 'teamB'].length === 0 ? 'captain' : 'member'
-        });
+      // Preferred: atomic RPC that holds escrow from the joining user's wallet
+      const { error: rpcErr } = await supabase.rpc('join_team_with_escrow', {
+        p_match_id: matchId,
+        p_user_id: user.id,
+        p_team: team,
+      });
 
-      if (error) throw error;
+      if (rpcErr) {
+        // Fallback to legacy behavior if RPC not available
+        const msg = rpcErr?.message || '';
+        const fnMissing = msg.includes('function join_team_with_escrow') || msg.includes('does not exist');
+        if (!fnMissing) throw rpcErr;
 
-      toast.success(`Successfully joined Team ${team}!`);
+        const { error } = await supabase
+          .from('match_participants')
+          .insert({
+            match_id: matchId,
+            user_id: user.id,
+            team: team,
+            role: teamStructure[team === 'A' ? 'teamA' : 'teamB'].length === 0 ? 'captain' : 'member'
+          });
+        if (error) throw error;
+        toast.warning('Joined team without escrow hold (RPC missing). Consider enabling join_team_with_escrow on backend.');
+      } else {
+        toast.success(`Joined Team ${team}! Your stake has been held in escrow.`);
+      }
+
       refetch();
       onJoinSuccess?.();
     } catch (error: any) {

@@ -10,6 +10,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useMatches, useOpenChallenges } from "@/hooks/useMatches";
+import { MatchCardSkeleton } from "@/components/ui/loading-skeletons";
 import { useAuth } from "@/hooks/useAuth";
 import { TeamDisplay } from "@/components/TeamDisplay";
 import { useMatchParticipants } from "@/hooks/useMatchParticipants";
@@ -157,13 +158,20 @@ const DashboardMatches = () => {
 
           <TabsContent value="matches">
             {matchesLoading ? (
-              <div>Loading matches...</div>
+              <div className="app-grid">
+                {[...Array(6)].map((_, i) => (
+                  <div key={`match-skel-${i}`} className="card-slot card-slot--match">
+                    <MatchCardSkeleton />
+                  </div>
+                ))}
+              </div>
             ) : matches?.length === 0 ? (
-              <div>No matches found</div>
+              <div className="text-center py-8 text-muted-foreground">No matches found</div>
             ) : (
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="app-grid">
                 {matches?.map((match) => (
-                  <Card key={match.id} className="p-0 overflow-hidden bg-gradient-to-br from-background to-muted/40 border border-border/60 hover:shadow-xl hover:-translate-y-0.5 transition-all group">
+                  <div key={match.id} className="card-slot card-slot--match">
+                    <Card className="p-0 overflow-hidden bg-gradient-to-br from-background to-muted/40 border border-border/60 hover:shadow-xl hover:-translate-y-0.5 transition-all group">
                     {/* Header image / status */}
                     <div className="relative">
                       <AspectRatio ratio={16/6}>
@@ -269,6 +277,7 @@ const DashboardMatches = () => {
                       </div>
                     </div>
                   </Card>
+                  </div>
                 ))}
               </div>
             )}
@@ -276,13 +285,20 @@ const DashboardMatches = () => {
 
           <TabsContent value="challenges">
             {challengesLoading ? (
-              <div>Loading challenges...</div>
+              <div className="app-grid">
+                {[...Array(6)].map((_, i) => (
+                  <div key={`challenge-skel-${i}`} className="card-slot card-slot--match">
+                    <MatchCardSkeleton />
+                  </div>
+                ))}
+              </div>
             ) : challenges?.length === 0 ? (
-              <div>No open challenges</div>
+              <div className="text-center py-8 text-muted-foreground">No open challenges</div>
             ) : (
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="app-grid">
                 {challenges?.map((challenge) => (
-                  <Card key={challenge.id} className="p-0 overflow-hidden bg-gradient-to-br from-background to-muted/40 border border-border/60 hover:shadow-xl hover:-translate-y-0.5 transition-all group">
+                  <div key={challenge.id} className="card-slot card-slot--match">
+                    <Card className="p-0 overflow-hidden bg-gradient-to-br from-background to-muted/40 border border-border/60 hover:shadow-xl hover:-translate-y-0.5 transition-all group">
                     {/* Header image / status */}
                     <div className="relative">
                       <AspectRatio ratio={16/6}>
@@ -356,6 +372,7 @@ const DashboardMatches = () => {
                       </div>
                     </div>
                   </Card>
+                  </div>
                 ))}
               </div>
             )}

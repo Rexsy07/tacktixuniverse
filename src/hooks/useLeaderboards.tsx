@@ -23,12 +23,34 @@ export function useLeaderboards() {
   const [gameLeaderboards, setGameLeaderboards] = useState<{ [gameId: string]: LeaderboardEntry[] }>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     fetchLeaderboards();
   }, []);
 
-  const fetchLeaderboards = async () => {
+  useEffect(() => {
+    const pollId = setInterval(() => fetchLeaderboards(true), 20000);
+    const channels: any[] = [];
+    if (realtimeEnabled) {
+      ['user_wallets', 'matches', 'profiles', 'games'].forEach((table) => {
+        const ch = supabase
+          .channel(`leaderboards-${table}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table }, () => fetchLeaderboards(true))
+          .subscribe();
+        channels.push(ch);
+      });
+    }
+    return () => {
+      clearInterval(pollId);
+      channels.forEach((ch) => {
+        try { ch.unsubscribe?.(); supabase.removeChannel?.(ch); } catch (_) {}
+      });
+    };
+  }, [realtimeEnabled]);
+
+  const fetchLeaderboards = async (isRefresh = false) => {
     try {
       setLoading(true);
 
@@ -198,14 +220,15 @@ export function useLeaderboards() {
       setError(err.message);
       console.error('Error fetching leaderboards:', err);
     } finally {
-      setLoading(false);
+      if (!hasLoaded) setHasLoaded(true);
+      setLoading(!isRefresh && !hasLoaded ? false : false);
     }
   };
 
   return {
     globalLeaderboard,
     gameLeaderboards,
-    loading,
+    loading: !hasLoaded && loading,
     error,
     refetch: fetchLeaderboards
   };

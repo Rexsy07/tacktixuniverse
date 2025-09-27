@@ -12,12 +12,35 @@ export function useGames() {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     fetchGames();
   }, []);
 
-  const fetchGames = async () => {
+  // Realtime and polling for non-intrusive updates
+  useEffect(() => {
+    const pollId = setInterval(() => fetchGames(true), 12000);
+    const channels: any[] = [];
+    if (realtimeEnabled) {
+      ['games', 'game_modes', 'matches'].forEach((table) => {
+        const ch = supabase
+          .channel(`games-${table}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table }, () => fetchGames(true))
+          .subscribe();
+        channels.push(ch);
+      });
+    }
+    return () => {
+      clearInterval(pollId);
+      channels.forEach((ch) => {
+        try { ch.unsubscribe?.(); supabase.removeChannel?.(ch); } catch (_) {}
+      });
+    };
+  }, [realtimeEnabled]);
+
+  const fetchGames = async (isRefresh = false) => {
     try {
       setLoading(true);
       
@@ -64,11 +87,12 @@ export function useGames() {
       setError(err.message);
       console.error('Error fetching games:', err);
     } finally {
-      setLoading(false);
+      if (!hasLoaded) setHasLoaded(true);
+      setLoading(!isRefresh && !hasLoaded ? false : false);
     }
   };
 
-  return { games, loading, error, refetch: fetchGames };
+  return { games, loading: !hasLoaded && loading, error, refetch: fetchGames };
 }
 
 export function useGame(gameId: string | undefined) {

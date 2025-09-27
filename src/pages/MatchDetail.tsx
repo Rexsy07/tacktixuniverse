@@ -19,6 +19,7 @@ import TeamParticipants from "@/components/TeamParticipants";
 import JoinTeamMatch from "@/components/JoinTeamMatch";
 import { getFormatDisplayName, isTeamFormat } from "@/utils/gameFormats";
 import { useMatchParticipants } from "@/hooks/useMatchParticipants";
+import { useMatchPot } from "@/hooks/useMatchPot";
 
 interface MatchDetail {
   id: string;
@@ -83,6 +84,7 @@ const MatchDetail = () => {
 
   // Load participants to allow team members to mark match as done
   const { participants } = useMatchParticipants(matchId);
+  const { pot, contributors, loading: potLoading, refetch: refetchPot } = useMatchPot(matchId);
 
   useEffect(() => {
     if (matchId) {
@@ -450,9 +452,15 @@ const MatchDetail = () => {
                     
                     <div className="space-y-4">
                       <div>
-                        <span className="text-foreground/60 text-sm">Stake Amount:</span>
+                        <span className="text-foreground/60 text-sm">Stake Amount (per player):</span>
                         <div className="font-semibold text-primary text-xl">
                           ₦{match.stake_amount.toLocaleString()}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-foreground/60 text-sm">Current Pot:</span>
+                        <div className="font-semibold text-success text-xl">
+                          {potLoading ? '—' : `₦${pot.toLocaleString()}`} <span className="text-xs text-muted-foreground">({contributors} contributors)</span>
                         </div>
                       </div>
                       

@@ -18,9 +18,11 @@ const Tournaments = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
+    let mounted = true;
+    const load = async (isRefresh = false) => {
       try {
-        setLoading(true);
+        if (!mounted) return;
+        setLoading(prev => (prev && !isRefresh) ? prev : false);
         const { data, error } = await supabase
           .from('tournaments')
           .select('*, games(name, short_name)')
@@ -59,7 +61,24 @@ const Tournaments = () => {
         setLoading(false);
       }
     };
+    const interval = setInterval(() => load(true), 15000);
+    const ch1 = supabase
+      .channel('page-tournaments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments' }, () => load(true))
+      .subscribe();
+    const ch2 = supabase
+      .channel('page-tournament_participants')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_participants' }, () => load(true))
+      .subscribe();
+
     load();
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+      try { ch1.unsubscribe(); supabase.removeChannel(ch1); } catch (_) {}
+      try { ch2.unsubscribe(); supabase.removeChannel(ch2); } catch (_) {}
+    };
   }, []);
 
   const upcomingTournaments = useMemo(() => list.filter(t => t.status !== 'completed'), [list]);

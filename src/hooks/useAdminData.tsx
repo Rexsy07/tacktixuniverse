@@ -63,14 +63,43 @@ export const useAdminStats = () => {
   });
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchAdminStats();
-    }
+    if (!user) return;
+    fetchAdminStats();
   }, [user]);
 
-  const fetchAdminStats = async () => {
+  // Realtime and polling for admin stats (non-disruptive)
+  useEffect(() => {
+    if (!user) return;
+
+    // Polling fallback every 10s
+    const pollId = setInterval(() => fetchAdminStats(true), 10000);
+
+    // Supabase realtime subscriptions to trigger silent refreshes
+    const channels: any[] = [];
+    if (realtimeEnabled) {
+      const tables = ['profiles', 'matches', 'transactions', 'tournaments', 'platform_fees'];
+      tables.forEach((table) => {
+        const ch = supabase
+          .channel(`admin-stats-${table}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table }, () => fetchAdminStats(true))
+          .subscribe();
+        channels.push(ch);
+      });
+    }
+
+    return () => {
+      clearInterval(pollId);
+      channels.forEach((ch) => {
+        try { ch.unsubscribe?.(); supabase.removeChannel?.(ch); } catch (_) {}
+      });
+    };
+  }, [user, realtimeEnabled]);
+
+  const fetchAdminStats = async (isRefresh = false) => {
     try {
       setLoading(true);
 
@@ -159,25 +188,51 @@ export const useAdminStats = () => {
       console.error('Error fetching admin stats:', error);
       toast.error('Failed to fetch admin statistics');
     } finally {
-      setLoading(false);
+      if (!hasLoaded) setHasLoaded(true);
+      // Only show the main loading state on first load
+      setLoading(!isRefresh && !hasLoaded ? false : false);
     }
   };
 
-  return { stats, loading, refetch: fetchAdminStats };
+  return { stats, loading: !hasLoaded && loading, refetch: fetchAdminStats };
 };
 
 export const useAdminUsers = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchUsers();
-    }
+    if (!user) return;
+    fetchUsers();
   }, [user]);
 
-  const fetchUsers = async () => {
+  // Realtime + polling for users (silent updates)
+  useEffect(() => {
+    if (!user) return;
+
+    const pollId = setInterval(() => fetchUsers(true), 12000);
+    const channels: any[] = [];
+    if (realtimeEnabled) {
+      ['profiles', 'user_stats', 'user_wallets', 'user_flags'].forEach((table) => {
+        const ch = supabase
+          .channel(`admin-users-${table}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table }, () => fetchUsers(true))
+          .subscribe();
+        channels.push(ch);
+      });
+    }
+    return () => {
+      clearInterval(pollId);
+      channels.forEach((ch) => {
+        try { ch.unsubscribe?.(); supabase.removeChannel?.(ch); } catch (_) {}
+      });
+    };
+  }, [user, realtimeEnabled]);
+
+  const fetchUsers = async (isRefresh = false) => {
     try {
       setLoading(true);
 
@@ -286,7 +341,8 @@ export const useAdminUsers = () => {
       console.error('Error fetching users:', error);
       toast.error('Failed to fetch users');
     } finally {
-      setLoading(false);
+      if (!hasLoaded) setHasLoaded(true);
+      setLoading(!isRefresh && !hasLoaded ? false : false);
     }
   };
 
@@ -323,21 +379,42 @@ export const useAdminUsers = () => {
     }
   };
 
-  return { users, loading, refetch: fetchUsers, changeUserRole, suspendUser };
+  return { users, loading: !hasLoaded && loading, refetch: fetchUsers, changeUserRole, suspendUser };
 };
 
 export const useAdminMatches = () => {
   const [matches, setMatches] = useState<AdminMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchMatches();
-    }
+    if (!user) return;
+    fetchMatches();
   }, [user]);
 
-  const fetchMatches = async () => {
+  // Realtime + polling for matches (silent refresh)
+  useEffect(() => {
+    if (!user) return;
+    const pollId = setInterval(() => fetchMatches(true), 8000);
+    const channels: any[] = [];
+    if (realtimeEnabled) {
+      const ch = supabase
+        .channel('admin-matches')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => fetchMatches(true))
+        .subscribe();
+      channels.push(ch);
+    }
+    return () => {
+      clearInterval(pollId);
+      channels.forEach((ch) => {
+        try { ch.unsubscribe?.(); supabase.removeChannel?.(ch); } catch (_) {}
+      });
+    };
+  }, [user, realtimeEnabled]);
+
+  const fetchMatches = async (isRefresh = false) => {
     try {
       setLoading(true);
 
@@ -387,7 +464,8 @@ export const useAdminMatches = () => {
       console.error('Error fetching matches:', error);
       toast.error('Failed to fetch matches');
     } finally {
-      setLoading(false);
+      if (!hasLoaded) setHasLoaded(true);
+      setLoading(!isRefresh && !hasLoaded ? false : false);
     }
   };
 
@@ -415,13 +493,26 @@ export const useAdminMatches = () => {
 
       if (error) throw error;
 
-      // Settle escrow: refund winner hold, finalize loser hold, credit winnings, record fee
-      const { error: settleErr } = await supabase.rpc('settle_match_escrow', {
+      // Team-aware settlement: try team settlement first, fallback to 1v1
+      const { error: teamSettleErr } = await supabase.rpc('settle_team_match_escrow', {
         p_match_id: matchId,
-        p_winner_id: winnerId,
+        p_winner_user_id: winnerId,
         p_fee_percentage: 5.0,
       });
-      if (settleErr) throw settleErr;
+
+      if (teamSettleErr) {
+        const msg = teamSettleErr?.message || '';
+        const fnMissing = msg.includes('settle_team_match_escrow') || msg.includes('does not exist');
+        if (!fnMissing) throw teamSettleErr;
+
+        // Fallback to legacy single-winner settlement
+        const { error: settleErr } = await supabase.rpc('settle_match_escrow', {
+          p_match_id: matchId,
+          p_winner_id: winnerId,
+          p_fee_percentage: 5.0,
+        });
+        if (settleErr) throw settleErr;
+      }
 
       toast.success('Dispute resolved and escrow settled successfully');
       fetchMatches(); // Refresh the data
@@ -432,21 +523,42 @@ export const useAdminMatches = () => {
     }
   };
 
-  return { matches, loading, refetch: fetchMatches, resolveDispute };
+  return { matches, loading: !hasLoaded && loading, refetch: fetchMatches, resolveDispute };
 };
 
 export const useAdminFees = () => {
   const [fees, setFees] = useState<AdminFees>({ lifetime: 0, today: 0, last30Days: 0, recent: [] });
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchFees();
-    }
+    if (!user) return;
+    fetchFees();
   }, [user]);
 
-  const fetchFees = async () => {
+  // Realtime + polling for fees (silent refresh)
+  useEffect(() => {
+    if (!user) return;
+    const pollId = setInterval(() => fetchFees(true), 15000);
+    const channels: any[] = [];
+    if (realtimeEnabled) {
+      const ch = supabase
+        .channel('admin-platform_fees')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'platform_fees' }, () => fetchFees(true))
+        .subscribe();
+      channels.push(ch);
+    }
+    return () => {
+      clearInterval(pollId);
+      channels.forEach((ch) => {
+        try { ch.unsubscribe?.(); supabase.removeChannel?.(ch); } catch (_) {}
+      });
+    };
+  }, [user, realtimeEnabled]);
+
+  const fetchFees = async (isRefresh = false) => {
     try {
       setLoading(true);
 
@@ -498,9 +610,10 @@ export const useAdminFees = () => {
       console.error('Error fetching fees:', error);
       toast.error('Failed to fetch platform fees');
     } finally {
-      setLoading(false);
+      if (!hasLoaded) setHasLoaded(true);
+      setLoading(!isRefresh && !hasLoaded ? false : false);
     }
   };
 
-  return { fees, loading, refetch: fetchFees };
+  return { fees, loading: !hasLoaded && loading, refetch: fetchFees };
 };

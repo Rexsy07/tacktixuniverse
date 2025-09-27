@@ -11,6 +11,8 @@ export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -18,7 +20,24 @@ export function useTransactions() {
     }
   }, [user]);
 
-  const fetchTransactions = async () => {
+  useEffect(() => {
+    if (!user) return;
+    const pollId = setInterval(() => fetchTransactions(true), 12000);
+    const channels: any[] = [];
+    if (realtimeEnabled) {
+      const ch = supabase
+        .channel(`transactions-user-${user.id}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` }, () => fetchTransactions(true))
+        .subscribe();
+      channels.push(ch);
+    }
+    return () => {
+      clearInterval(pollId);
+      channels.forEach((ch) => { try { ch.unsubscribe?.(); supabase.removeChannel?.(ch); } catch (_) {} });
+    };
+  }, [user, realtimeEnabled]);
+
+  const fetchTransactions = async (isRefresh = false) => {
     if (!user) return;
 
     try {
@@ -38,7 +57,8 @@ export function useTransactions() {
       setError(err.message);
       console.error('Error fetching transactions:', err);
     } finally {
-      setLoading(false);
+      if (!hasLoaded) setHasLoaded(true);
+      setLoading(!isRefresh && !hasLoaded ? false : false);
     }
   };
 
@@ -95,7 +115,7 @@ export function useTransactions() {
 
   return {
     transactions,
-    loading,
+    loading: !hasLoaded && loading,
     error,
     createDepositRequest,
     createWithdrawRequest,

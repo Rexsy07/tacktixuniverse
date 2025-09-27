@@ -206,7 +206,7 @@ const DashboardProfile = () => {
                 <div className="p-6">
                   <h3 className="text-xl font-bold mb-6">Achievements</h3>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="app-grid">
                     {achievements.map((achievement) => {
                       const Icon = achievement.icon;
                       return (

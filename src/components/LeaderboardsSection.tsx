@@ -8,13 +8,14 @@ import { useLeaderboards } from "@/hooks/useLeaderboards";
 import { useGames } from "@/hooks/useGames";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { LeaderboardRowSkeleton } from "@/components/ui/loading-skeletons";
 
 const LeaderboardsSection = () => {
   const [activeTab, setActiveTab] = useState('global');
   const { globalLeaderboard, gameLeaderboards, loading, error } = useLeaderboards();
   const { games } = useGames();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const handleViewFullLeaderboard = () => {
     navigate('/leaderboards');
@@ -124,25 +125,25 @@ const LeaderboardsSection = () => {
                   </Badge>
                 </div>
 
-                <div className="space-y-4">
+                <div className="leaderboard-container space-y-4 content-transition" style={{"--content-min-height": "440px"} as React.CSSProperties}>
                   {loading ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                      <p className="mt-2 text-foreground/70">Loading leaderboard...</p>
-                    </div>
+                    // Show skeleton rows to prevent layout shift
+                    [...Array(5)].map((_, i) => (
+                      <LeaderboardRowSkeleton key={`skeleton-${i}`} />
+                    ))
                   ) : error ? (
-                    <div className="text-center py-8">
+                    <div className="text-center py-8 min-h-[200px] flex items-center justify-center">
                       <p className="text-destructive">Error loading leaderboard: {error}</p>
                     </div>
                   ) : getLeaderboardData().length === 0 ? (
-                    <div className="text-center py-8">
+                    <div className="text-center py-8 min-h-[200px] flex items-center justify-center">
                       <p className="text-foreground/70">No leaderboard data available yet.</p>
                     </div>
                   ) : (
                     getLeaderboardData().map((player) => (
                       <div 
                         key={player.rank}
-                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-4 rounded-lg transition-all duration-300 hover:bg-muted/20 overflow-hidden ${
+                        className={`leaderboard-row flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-4 rounded-lg transition-all duration-300 hover:bg-muted/20 overflow-hidden ${
                           player.rank <= 3 ? 'glass glow-primary' : 'bg-muted/10'
                         }`}
                       >
@@ -219,38 +220,40 @@ const LeaderboardsSection = () => {
               </Card>
             )}
 
-            {/* Quick Stats */}
-            <Card className="glass-card">
-              <div className="p-6">
-                <h4 className="font-bold mb-4">Platform Stats</h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-foreground/70">Total Players:</span>
-                    <span className="font-semibold">
-                      {globalLeaderboard.length > 0 ? globalLeaderboard.length : '0'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-foreground/70">Total Matches:</span>
-                    <span className="font-semibold text-primary">
-                      {globalLeaderboard.reduce((sum, player) => sum + player.total_matches, 0)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-foreground/70">Total Winnings:</span>
-                    <span className="font-semibold text-success">
-                      ₦{globalLeaderboard.reduce((sum, player) => sum + player.total_earnings, 0).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-foreground/70">Active Players:</span>
-                    <span className="font-semibold text-accent">
-                      {globalLeaderboard.filter(player => player.total_matches > 0).length}
-                    </span>
+            {/* Quick Stats - Admin only */}
+            {isAdmin && (
+              <Card className="glass-card">
+                <div className="p-6">
+                  <h4 className="font-bold mb-4">Platform Stats</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-foreground/70">Total Players:</span>
+                      <span className="font-semibold">
+                        {globalLeaderboard.length > 0 ? globalLeaderboard.length : '0'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-foreground/70">Total Matches:</span>
+                      <span className="font-semibold text-primary">
+                        {globalLeaderboard.reduce((sum, player) => sum + player.total_matches, 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-foreground/70">Total Winnings:</span>
+                      <span className="font-semibold text-success">
+                        ₦{globalLeaderboard.reduce((sum, player) => sum + player.total_earnings, 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-foreground/70">Active Players:</span>
+                      <span className="font-semibold text-accent">
+                        {globalLeaderboard.filter(player => player.total_matches > 0).length}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            )}
           </div>
         </div>
 

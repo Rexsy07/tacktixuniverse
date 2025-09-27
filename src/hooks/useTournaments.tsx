@@ -15,6 +15,8 @@ export function useTournaments() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     // Skip tournament loading if feature is disabled
@@ -25,7 +27,28 @@ export function useTournaments() {
     fetchTournaments();
   }, [user]);
 
-  const fetchTournaments = async () => {
+  useEffect(() => {
+    if (import.meta.env.VITE_DISABLE_TOURNAMENTS === 'true') return;
+    const pollId = setInterval(() => fetchTournaments(true), 15000);
+    const channels: any[] = [];
+    if (realtimeEnabled) {
+      ['tournaments', 'tournament_participants'].forEach((table) => {
+        const ch = supabase
+          .channel(`tournaments-${table}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table }, () => fetchTournaments(true))
+          .subscribe();
+        channels.push(ch);
+      });
+    }
+    return () => {
+      clearInterval(pollId);
+      channels.forEach((ch) => {
+        try { ch.unsubscribe?.(); supabase.removeChannel?.(ch); } catch (_) {}
+      });
+    };
+  }, [realtimeEnabled]);
+
+  const fetchTournaments = async (isRefresh = false) => {
     // Skip if tournaments are disabled
     if (import.meta.env.VITE_DISABLE_TOURNAMENTS === 'true') {
       setTournaments([]);
@@ -93,7 +116,8 @@ export function useTournaments() {
       setError(err.message);
       console.error('Error fetching tournaments:', err);
     } finally {
-      setLoading(false);
+      if (!hasLoaded) setHasLoaded(true);
+      setLoading(!isRefresh && !hasLoaded ? false : false);
     }
   };
 
@@ -123,7 +147,7 @@ export function useTournaments() {
 
   return {
     tournaments,
-    loading,
+    loading: !hasLoaded && loading,
     error,
     registerForTournament,
     refetch: fetchTournaments
@@ -136,6 +160,8 @@ export function useUserTournaments() {
   const [availableTournaments, setAvailableTournaments] = useState<Tournament[]>([]);
   const [completedTournaments, setCompletedTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
+  const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     // Skip tournament loading if feature is disabled
@@ -148,7 +174,28 @@ export function useUserTournaments() {
     }
   }, [user]);
 
-  const fetchUserTournaments = async () => {
+  useEffect(() => {
+    if (!user || import.meta.env.VITE_DISABLE_TOURNAMENTS === 'true') return;
+    const pollId = setInterval(() => fetchUserTournaments(true), 15000);
+    const channels: any[] = [];
+    if (realtimeEnabled) {
+      ['tournaments', 'tournament_participants'].forEach((table) => {
+        const ch = supabase
+          .channel(`user-tournaments-${table}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table }, () => fetchUserTournaments(true))
+          .subscribe();
+        channels.push(ch);
+      });
+    }
+    return () => {
+      clearInterval(pollId);
+      channels.forEach((ch) => {
+        try { ch.unsubscribe?.(); supabase.removeChannel?.(ch); } catch (_) {}
+      });
+    };
+  }, [user, realtimeEnabled]);
+
+  const fetchUserTournaments = async (isRefresh = false) => {
     if (!user) return;
     
     // Skip if tournaments are disabled
@@ -239,7 +286,8 @@ export function useUserTournaments() {
       setCompletedTournaments([]);
       setAvailableTournaments([]);
     } finally {
-      setLoading(false);
+      if (!hasLoaded) setHasLoaded(true);
+      setLoading(!isRefresh && !hasLoaded ? false : false);
     }
   };
 
@@ -247,7 +295,7 @@ export function useUserTournaments() {
     myTournaments,
     availableTournaments,
     completedTournaments,
-    loading,
+    loading: !hasLoaded && loading,
     refetch: fetchUserTournaments
   };
 }

@@ -42,16 +42,7 @@ const Games = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-foreground/70">Loading games...</p>
-        </div>
-      </div>
-    );
-  }
+  // No fullscreen spinner; grid will show skeletons via GamesGrid styling elsewhere
 
   return (
     <div className="min-h-screen bg-background">
@@ -89,9 +80,10 @@ const Games = () => {
         {/* Games Grid */}
         <section className="py-16">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="app-grid">
               {filteredGames.map((game) => (
-                <Card key={game.id} className="glass-card game-card overflow-hidden group">
+                <div key={game.id} className="card-slot card-slot--game">
+                  <Card className="glass-card game-card overflow-hidden group">
                   <div className="relative">
                     <img 
                       src={game.cover} 
@@ -163,7 +155,8 @@ const Games = () => {
                       </Button>
                     </Link>
                   </div>
-                </Card>
+                  </Card>
+                </div>
               ))}
             </div>
             

@@ -25,6 +25,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { usePlatformSettings } from '@/hooks/usePlatformSettings';
 import { useMatches } from '@/hooks/useMatches';
+import { HeaderSkeletons } from '@/components/ui/loading-skeletons';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -85,24 +86,24 @@ const { maintenanceMode } = usePlatformSettings();
               <span className="font-bold">TacktixEdge</span>
             </Link>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="header-actions"> {/* Uses fixed width from CSS */}
             {user ? (
-              <>
+              <div className="flex items-center space-x-4 content-transition">
                 {/* Dashboard Button */}
                 <Button asChild variant="outline" className="hidden sm:inline-flex">
                   <Link to="/profile">Profile</Link>
                 </Button>
 
                 {/* Wallet Balance */}
-                <div className="hidden sm:flex items-center space-x-2 px-3 py-1 rounded-md bg-muted">
+                <div className="wallet-display hidden sm:flex items-center space-x-2 px-3 py-1 rounded-md bg-muted">
                   <Wallet className="h-4 w-4" />
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-medium truncate">
                     {profileLoading ? '₦—' : `₦${(wallet?.balance || 0).toLocaleString()}`}
                   </span>
                 </div>
 
                 {/* Notifications */}
-                <Button variant="ghost" size="icon" className="relative" asChild>
+                <Button variant="ghost" size="icon" className="notification-button relative" asChild>
                   <Link to="/notifications">
                     <Bell className="h-4 w-4" />
                     {pendingNotifs > 0 && (
@@ -116,7 +117,7 @@ const { maintenanceMode } = usePlatformSettings();
                 {/* Profile Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" className="notification-button">
                       <User className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -160,16 +161,16 @@ const { maintenanceMode } = usePlatformSettings();
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </>
+              </div>
             ) : (
-              <>
+              <div className="flex items-center space-x-4">
                 <Button variant="ghost" asChild className="hidden sm:inline-flex">
                   <Link to="/login">Login</Link>
                 </Button>
                 <Button asChild>
                   <Link to="/signup">Sign Up</Link>
                 </Button>
-              </>
+              </div>
             )}
           </div>
         </div>

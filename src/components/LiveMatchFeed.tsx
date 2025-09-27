@@ -6,6 +6,7 @@ import { useLiveMatches } from "@/hooks/useMatches";
 import { useAuth } from "@/hooks/useAuth";
 import { useGames } from "@/hooks/useGames";
 import MatchCard from "@/components/MatchCard";
+import { MatchCardSkeleton } from "@/components/ui/loading-skeletons";
 
 const LiveMatchFeed = () => {
   const [filter, setFilter] = useState('all');
@@ -94,14 +95,14 @@ const LiveMatchFeed = () => {
         </div>
 
         {/* Live Matches Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="matches-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 content-transition" style={{"--content-min-height": "400px"} as React.CSSProperties}>
           {loading ? (
-            <div className="col-span-full text-center py-12">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-foreground/70">Loading live matches...</p>
-            </div>
+            // Show skeleton cards to prevent layout shift
+            [...Array(3)].map((_, i) => (
+              <MatchCardSkeleton key={`skeleton-${i}`} />
+            ))
           ) : matches.length === 0 ? (
-            <div className="col-span-full text-center py-12">
+            <div className="col-span-full text-center py-12 min-h-[300px] flex flex-col items-center justify-center">
               <Users className="h-16 w-16 mx-auto text-foreground/30 mb-4" />
               <h3 className="text-xl font-semibold mb-2">No Active Matches</h3>
               <p className="text-foreground/70 mb-6">Be the first to create a challenge!</p>
@@ -111,7 +112,9 @@ const LiveMatchFeed = () => {
             </div>
           ) : (
             matches.map((match) => (
-              <MatchCard key={match.id} match={match} />
+              <div key={match.id} className="match-card-slot">
+                <MatchCard match={match} />
+              </div>
             ))
           )}
         </div>

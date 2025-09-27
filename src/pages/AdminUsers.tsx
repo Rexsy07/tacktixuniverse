@@ -192,8 +192,8 @@ const AdminUsers = () => {
         <Card className="glass-card">
           <div className="p-6">
             <div className="space-y-4">
-              {filteredUsers.map((user, index) => (
-                <div key={`${user.id}-${index}`} className="glass rounded-lg p-4">
+{filteredUsers.map((user) => (
+                <div key={user.id} className="glass rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1">
                       <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">

@@ -107,12 +107,13 @@ const DashboardTournaments = () => {
 
         {/* Available Tournaments */}
         <TabsContent value="available">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="app-grid">
             {tournamentsLoading ? (
-              <div className="col-span-full text-center py-12">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-                <p className="mt-4 text-foreground/70">Loading tournaments...</p>
-              </div>
+              [...Array(4)].map((_, i) => (
+                <div key={`dash-tour-skel-${i}`} className="card-slot card-slot--tournament">
+                  <Card className="glass-card" />
+                </div>
+              ))
             ) : availableTournaments.length === 0 ? (
               <div className="col-span-full text-center py-12">
                 <Trophy className="h-16 w-16 mx-auto text-foreground/30 mb-4" />
@@ -121,70 +122,72 @@ const DashboardTournaments = () => {
               </div>
             ) : (
               availableTournaments.map((tournament) => (
-                <Card key={tournament.id} className={`glass-card ${tournament.is_featured ? 'ring-2 ring-primary' : ''}`}>
-                  <div className="p-6">
-                    {tournament.is_featured && (
-                      <Badge className="bg-primary text-primary-foreground mb-4">
-                        <Star className="mr-1 h-3 w-3" />
-                        Featured Tournament
-                      </Badge>
-                    )}
-                    
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-xl font-bold">{tournament.name}</h3>
-                        <Badge variant="secondary">{tournament.games?.short_name}</Badge>
+                <div key={tournament.id} className="card-slot card-slot--tournament">
+                  <Card className={`glass-card ${tournament.is_featured ? 'ring-2 ring-primary' : ''}`}>
+                    <div className="p-6">
+                      {tournament.is_featured && (
+                        <Badge className="bg-primary text-primary-foreground mb-4">
+                          <Star className="mr-1 h-3 w-3" />
+                          Featured Tournament
+                        </Badge>
+                      )}
+                      
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-xl font-bold">{tournament.name}</h3>
+                          <Badge variant="secondary">{tournament.games?.short_name}</Badge>
+                        </div>
+                        <Badge className={getStatusColor(tournament.status)}>
+                          {tournament.status.toUpperCase()}
+                        </Badge>
                       </div>
-                      <Badge className={getStatusColor(tournament.status)}>
-                        {tournament.status.toUpperCase()}
-                      </Badge>
+                      
+                      <div className="space-y-3 mb-6">
+                        <div className="flex justify-between">
+                          <span className="text-foreground/70">Format:</span>
+                          <span className="font-semibold">{tournament.format}</span>
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <span className="text-foreground/70">Entry Fee:</span>
+                          <span className="font-semibold text-primary">₦{tournament.entry_fee?.toLocaleString()}</span>
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <span className="text-foreground/70">Prize Pool:</span>
+                          <span className="font-semibold text-success">₦{tournament.prize_pool?.toLocaleString()}</span>
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <span className="text-foreground/70">Participants:</span>
+                          <span className="font-semibold">{tournament.current_participants}/{tournament.max_participants}</span>
+                        </div>
+                        
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div 
+                            className="bg-primary h-2 rounded-full transition-all"
+                            style={{ width: `${((tournament.current_participants || 0) / (tournament.max_participants || 1)) * 100}%` }}
+                          />
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-sm text-foreground/70">
+                          <Calendar className="h-4 w-4" />
+                          <span>Starts: {new Date(tournament.start_date).toLocaleDateString()} at {new Date(tournament.start_date).toLocaleTimeString()}</span>
+                        </div>
+                      </div>
+                      
+                      <Button 
+                        className="w-full bg-gradient-to-r from-primary to-accent"
+                        onClick={() => handleRegister(tournament.id)}
+                        disabled={tournament.current_participants >= tournament.max_participants || tournament.is_registered}
+                      >
+                        {tournament.is_registered ? "Already Registered" :
+                         tournament.current_participants >= tournament.max_participants ? "Tournament Full" : 
+                         "Register Now"}
+                      </Button>
                     </div>
-                    
-                    <div className="space-y-3 mb-6">
-                      <div className="flex justify-between">
-                        <span className="text-foreground/70">Format:</span>
-                        <span className="font-semibold">{tournament.format}</span>
-                      </div>
-                      
-                      <div className="flex justify-between">
-                        <span className="text-foreground/70">Entry Fee:</span>
-                        <span className="font-semibold text-primary">₦{tournament.entry_fee?.toLocaleString()}</span>
-                      </div>
-                      
-                      <div className="flex justify-between">
-                        <span className="text-foreground/70">Prize Pool:</span>
-                        <span className="font-semibold text-success">₦{tournament.prize_pool?.toLocaleString()}</span>
-                      </div>
-                      
-                      <div className="flex justify-between">
-                        <span className="text-foreground/70">Participants:</span>
-                        <span className="font-semibold">{tournament.current_participants}/{tournament.max_participants}</span>
-                      </div>
-                      
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div 
-                          className="bg-primary h-2 rounded-full transition-all"
-                          style={{ width: `${((tournament.current_participants || 0) / (tournament.max_participants || 1)) * 100}%` }}
-                        />
-                      </div>
-                      
-                      <div className="flex items-center gap-2 text-sm text-foreground/70">
-                        <Calendar className="h-4 w-4" />
-                        <span>Starts: {new Date(tournament.start_date).toLocaleDateString()} at {new Date(tournament.start_date).toLocaleTimeString()}</span>
-                      </div>
-                    </div>
-                    
-                    <Button 
-                      className="w-full bg-gradient-to-r from-primary to-accent"
-                      onClick={() => handleRegister(tournament.id)}
-                      disabled={tournament.current_participants >= tournament.max_participants || tournament.is_registered}
-                    >
-                      {tournament.is_registered ? "Already Registered" :
-                       tournament.current_participants >= tournament.max_participants ? "Tournament Full" : 
-                       "Register Now"}
-                    </Button>
-                  </div>
-                </Card>
+                  </Card>
+                </div>
               ))
             )}
           </div>

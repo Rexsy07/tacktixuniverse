@@ -18,14 +18,16 @@ const AdminDashboard = () => {
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
 
-  // Load real recent users and transactions
+  // Load real recent users and transactions and keep them live without disrupting UI
   useEffect(() => {
+    let mounted = true;
     const load = async () => {
       const { data: users } = await supabase
         .from('profiles')
         .select('username, created_at')
         .order('created_at', { ascending: false })
         .limit(10);
+      if (!mounted) return;
       setRecentUsers((users || []).map(u => ({
         username: u.username || 'Anonymous',
         joinDate: u.created_at,
@@ -38,6 +40,7 @@ const AdminDashboard = () => {
         .select('id, user_id, type, amount, status, created_at')
         .order('created_at', { ascending: false })
         .limit(10);
+      if (!mounted) return;
       setRecentTransactions((txns || []).map(t => ({
         id: t.id,
         user: (t.user_id || '').substring(0, 6) + '…',
@@ -50,11 +53,35 @@ const AdminDashboard = () => {
         .from('matches')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'disputed');
+      if (!mounted) return;
       setAlerts([
         { type: 'dispute', message: `${disputes || 0} match disputes awaiting review`, urgent: (disputes || 0) > 0 }
       ]);
     };
+
+    const interval = setInterval(load, 12000);
+
+    // Realtime silent refresh triggers
+    const ch1 = supabase.channel('admin-dashboard-profiles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, load)
+      .subscribe();
+    const ch2 = supabase.channel('admin-dashboard-transactions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, load)
+      .subscribe();
+    const ch3 = supabase.channel('admin-dashboard-matches')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, load)
+      .subscribe();
+
+    // Initial load
     load();
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+      try { ch1.unsubscribe(); supabase.removeChannel(ch1); } catch (_) {}
+      try { ch2.unsubscribe(); supabase.removeChannel(ch2); } catch (_) {}
+      try { ch3.unsubscribe(); supabase.removeChannel(ch3); } catch (_) {}
+    };
   }, []);
 
   return (

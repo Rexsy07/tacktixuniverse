@@ -5,6 +5,7 @@ import { Play, Users, Trophy, Target } from "lucide-react";
 import { useGames } from "@/hooks/useGames";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { GameCardSkeleton } from "@/components/ui/loading-skeletons";
 
 const GamesGrid = () => {
   const { games, loading, error } = useGames();
@@ -43,12 +44,16 @@ const GamesGrid = () => {
         </div>
 
         {/* Games Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="app-grid content-transition" style={{"--content-min-height": "420px"} as React.CSSProperties}>
           {loading ? (
-            <div className="col-span-full text-center py-12">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-foreground/70">Loading games...</p>
-            </div>
+            [...Array(6)].map((_, i) => (
+              <div key={`game-skel-${i}`} className="card-slot card-slot--game">
+                <Card className="glass-card overflow-hidden">
+                  {/* Use dedicated skeleton */}
+                  {/* Imported below */}
+                </Card>
+              </div>
+            ))
           ) : error ? (
             <div className="col-span-full text-center py-12">
               <p className="text-destructive">Error loading games: {error}</p>
@@ -59,87 +64,89 @@ const GamesGrid = () => {
             </div>
           ) : (
             games.map((game) => (
-              <Card key={game.id} className="glass-card overflow-hidden game-card group">
-                {/* Game Cover */}
-                <div className="relative overflow-hidden">
-                  <img
-                    src={game.cover_image_url}
-                    alt={game.name}
-                    className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent"></div>
-                  
-                  {/* Active Matches Badge */}
-                  <Badge className="absolute top-4 right-4 bg-primary/90 text-primary-foreground">
-                    <Users className="h-3 w-3 mr-1" />
-                    {game.active_matches_count || 0} active
-                  </Badge>
-
-                  {/* Game Logo/Name */}
-                  <div className="absolute bottom-4 left-4">
-                    <h3 className="font-bold text-lg text-white">{game.short_name}</h3>
+              <div key={game.id} className="card-slot card-slot--game">
+                <Card className="glass-card overflow-hidden game-card group">
+                  {/* Game Cover */}
+                  <div className="relative overflow-hidden">
+                    <img
+                      src={game.cover_image_url}
+                      alt={game.name}
+                      className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent"></div>
+                    
+                    {/* Active Matches Badge */}
+                    <Badge className="absolute top-4 right-4 bg-primary/90 text-primary-foreground">
+                      <Users className="h-3 w-3 mr-1" />
+                      {game.active_matches_count || 0} active
+                    </Badge>
+  
+                    {/* Game Logo/Name */}
+                    <div className="absolute bottom-4 left-4">
+                      <h3 className="font-bold text-lg text-white">{game.short_name}</h3>
+                    </div>
                   </div>
-                </div>
-
-                {/* Game Content */}
-                <div className="p-6">
-                  <h4 className="font-semibold mb-2 text-foreground">{game.name}</h4>
-                  <p className="text-sm text-foreground/70 mb-4 line-clamp-2">
-                    {game.description}
-                  </p>
-
-                  {/* Game Modes */}
-                  {game.game_modes && game.game_modes.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs text-foreground/50 mb-2">Available Modes:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {game.game_modes.slice(0, 3).map((mode) => (
-                          <Badge key={mode.id} variant="outline" className="text-xs">
-                            {mode.name}
-                          </Badge>
-                        ))}
-                        {game.game_modes.length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{game.game_modes.length - 3} more
-                          </Badge>
-                        )}
+  
+                  {/* Game Content */}
+                  <div className="p-6">
+                    <h4 className="font-semibold mb-2 text-foreground">{game.name}</h4>
+                    <p className="text-sm text-foreground/70 mb-4 line-clamp-2">
+                      {game.description}
+                    </p>
+  
+                    {/* Game Modes */}
+                    {game.game_modes && game.game_modes.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-xs text-foreground/50 mb-2">Available Modes:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {game.game_modes.slice(0, 3).map((mode) => (
+                            <Badge key={mode.id} variant="outline" className="text-xs">
+                              {mode.name}
+                            </Badge>
+                          ))}
+                          {game.game_modes.length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{game.game_modes.length - 3} more
+                            </Badge>
+                          )}
+                        </div>
                       </div>
+                    )}
+  
+                    {/* Stake Range */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="text-sm">
+                        <span className="text-foreground/50">Min Stake:</span>
+                        <span className="font-semibold text-primary ml-1">
+                          ₦{game.min_stake?.toLocaleString() || '0'}
+                        </span>
+                      </div>
+                      <Trophy className="h-4 w-4 text-accent" />
                     </div>
-                  )}
-
-                  {/* Stake Range */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="text-sm">
-                      <span className="text-foreground/50">Min Stake:</span>
-                      <span className="font-semibold text-primary ml-1">
-                        ₦{game.min_stake?.toLocaleString() || '0'}
-                      </span>
+  
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                      <Button 
+                        className="flex-1 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                        size="sm"
+                        onClick={() => handleFindMatch(game.id)}
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        Find Match
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="glass-button border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                        onClick={() => handleGameDetails(game.id)}
+                        title="View Game Details"
+                      >
+                        <Target className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Trophy className="h-4 w-4 text-accent" />
                   </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    <Button 
-                      className="flex-1 bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                      size="sm"
-                      onClick={() => handleFindMatch(game.id)}
-                    >
-                      <Play className="h-4 w-4 mr-2" />
-                      Find Match
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="glass-button border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                      onClick={() => handleGameDetails(game.id)}
-                      title="View Game Details"
-                    >
-                      <Target className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </div>
             ))
           )}
         </div>

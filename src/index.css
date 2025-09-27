@@ -272,4 +272,202 @@ All colors MUST be HSL.
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
   }
+
+  /* Layout Shift Prevention */
+  .prevent-layout-shift {
+    min-height: 1px;
+    contain: layout style;
+  }
+
+  /* Reserved space for dynamic content */
+  .content-container {
+    min-height: var(--content-min-height, 200px);
+    transition: min-height 0.3s ease;
+  }
+
+  /* Smooth content transitions */
+  .content-transition {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .content-transition.loading {
+    opacity: 0.7;
+    transform: translateY(2px);
+  }
+
+  /* Fixed dimensions for common UI elements */
+  .header-actions {
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1rem;
+  }
+
+  .wallet-display {
+    width: 120px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .notification-button {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Match grid stability */
+  .matches-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    min-height: 400px;
+  }
+
+  .match-card-slot {
+    height: 280px;
+    min-height: 280px;
+  }
+
+  /* Leaderboard stability */
+  .leaderboard-container {
+    min-height: 600px;
+  }
+
+  /* Generic app grid utilities */
+  .app-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+  @media (min-width: 768px) { /* md */
+    .app-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 1024px) { /* lg */
+    .app-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  /* Card slots for fixed heights */
+  .card-slot {
+    min-height: var(--card-min-h, 280px);
+  }
+  .card-slot--match { --card-min-h: 280px; }
+  .card-slot--game { --card-min-h: 420px; }
+  .card-slot--tournament { --card-min-h: 420px; }
+  .card-slot--feature { --card-min-h: 200px; }
+
+  .leaderboard-row {
+    height: 88px;
+    min-height: 88px;
+  }
+
+  /* Prevent flash of unstyled content */
+  .avoid-fout {
+    visibility: hidden;
+  }
+
+  .avoid-fout.loaded {
+    visibility: visible;
+    animation: fade-in 0.3s ease-out;
+  }
+
+  /* Enhanced smooth transitions for content loading */
+  .smooth-appear {
+    animation: smooth-appear 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+
+  @keyframes smooth-appear {
+    0% {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .smooth-disappear {
+    animation: smooth-disappear 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+
+  @keyframes smooth-disappear {
+    0% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    100% {
+      opacity: 0.6;
+      transform: translateY(-4px) scale(0.99);
+    }
+  }
+
+  /* Stagger animations for list items */
+  .stagger-item {
+    opacity: 0;
+    animation: stagger-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+
+  .stagger-item:nth-child(1) { animation-delay: 0.05s; }
+  .stagger-item:nth-child(2) { animation-delay: 0.1s; }
+  .stagger-item:nth-child(3) { animation-delay: 0.15s; }
+  .stagger-item:nth-child(4) { animation-delay: 0.2s; }
+  .stagger-item:nth-child(5) { animation-delay: 0.25s; }
+
+  @keyframes stagger-in {
+    0% {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Reduced motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    .content-transition,
+    .smooth-appear,
+    .smooth-disappear,
+    .stagger-item,
+    .prevent-layout-shift {
+      animation: none !important;
+      transition: none !important;
+    }
+
+    .content-transition.loading {
+      opacity: 0.8;
+      transform: none;
+    }
+  }
+
+  /* Mobile layout shift prevention */
+  @media (max-width: 640px) {
+    .header-actions {
+      min-width: 150px;
+    }
+    
+    .wallet-display {
+      width: 80px;
+    }
+    
+    .match-card-slot {
+      height: 320px;
+      min-height: 320px;
+    }
+
+    /* Reduce animations on mobile for better performance */
+    .content-transition {
+      transition-duration: 0.2s;
+    }
+  }
 }

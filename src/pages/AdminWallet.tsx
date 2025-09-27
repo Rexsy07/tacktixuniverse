@@ -24,9 +24,11 @@ const AdminWallet = () => {
   const [filterStatus, setFilterStatus] = useState("all");
 
   useEffect(() => {
+    let mounted = true;
     const loadTransactions = async () => {
       try {
-        setLoadingTx(true);
+        if (!mounted) return;
+        setLoadingTx(prev => prev && mounted ? prev : false); // avoid spinner after first load
         // Deposits
         const { data: deposits, error: depErr } = await supabase
           .from('transactions')
@@ -70,7 +72,20 @@ const AdminWallet = () => {
         setLoadingTx(false);
       }
     };
+    // Polling + realtime for non-intrusive updates
+    const interval = setInterval(loadTransactions, 12000);
+    const ch = supabase
+      .channel('admin-wallet-transactions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, loadTransactions)
+      .subscribe();
+
     loadTransactions();
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+      try { ch.unsubscribe(); supabase.removeChannel(ch); } catch (_) {}
+    };
   }, []);
 
   const getStatusColor = (status: string) => {
