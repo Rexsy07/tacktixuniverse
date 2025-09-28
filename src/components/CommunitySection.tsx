@@ -74,7 +74,7 @@ const CommunitySection = () => {
     {
       platform: "Discord",
       icon: "💬",
-      members: "3.2K",
+      members: "Join Now",
       description: "Join live discussions, find teammates, get support",
       cta: "Join Server",
       url: "https://discord.gg/3ZRHggav"
@@ -82,7 +82,7 @@ const CommunitySection = () => {
     {
       platform: "WhatsApp",
       icon: "📱",
-      members: "1.8K",
+      members: "Join Now",
       description: "Quick support, updates, and community chat",
       cta: "Join Group",
       url: "https://wa.me/08141826128"
@@ -90,7 +90,7 @@ const CommunitySection = () => {
     {
       platform: "Telegram",
       icon: "⚡",
-      members: "2.1K",
+      members: "Follow Now",
       description: "Tournament announcements and live match updates",
       cta: "Follow Channel",
       url: "https://t.me/tacktixedgechannel"
@@ -98,7 +98,7 @@ const CommunitySection = () => {
     {
       platform: "Instagram",
       icon: "📷",
-      members: "2.8K",
+      members: "Follow Now",
       description: "Gaming highlights, behind the scenes, and community posts",
       cta: "Follow Us",
       url: "https://www.instagram.com/tacktixedge"
@@ -106,7 +106,7 @@ const CommunitySection = () => {
     {
       platform: "TikTok",
       icon: "🎵",
-      members: "5.4K",
+      members: "Follow Now",
       description: "Gaming highlights, tutorials, and community content",
       cta: "Follow Us",
       url: "https://tiktok.com/@tacktixedge"
@@ -114,10 +114,10 @@ const CommunitySection = () => {
   ];
 
   const handleSocialClick = (platform: string, url: string) => {
-    // For now, show a notification that the feature is coming soon
-    toast.info(`${platform} community coming soon! Stay tuned for updates.`);
-    // In production, you would open the actual social media links:
-    // window.open(url, '_blank');
+    // Open the social media link in a new tab
+    window.open(url, '_blank');
+    // Optional: Show a success toast
+    toast.success(`Opening ${platform} in a new tab!`);
   };
 
   return (
