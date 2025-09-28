@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Mail, MessageCircle, Phone } from "lucide-react";
+import { ENV_CONFIG } from "@/utils/env";
 
 const Footer = () => {
   const footerLinks = {
@@ -23,11 +24,11 @@ const Footer = () => {
       { name: "KYC Policy", href: "/legal/kyc" },
     ],
     social: [
-      { name: "Discord", href: "https://discord.gg/3ZRHggav", icon: "💬" },
-      { name: "WhatsApp", href: "https://wa.me/08141826128", icon: "📱" },
-      { name: "Instagram", href: "https://www.instagram.com/tacktixedge", icon: "📷" },
-      { name: "Telegram", href: "https://t.me/tacktixedgechannel", icon: "⚡" },
-      { name: "TikTok", href: "https://tiktok.com/@tacktixedge", icon: "🎵" },
+      { name: "Discord", href: ENV_CONFIG.social.discord, icon: "💬" },
+      { name: "WhatsApp", href: ENV_CONFIG.social.whatsapp, icon: "📱" },
+      { name: "Instagram", href: ENV_CONFIG.social.instagram, icon: "📷" },
+      { name: "Telegram", href: ENV_CONFIG.social.telegram, icon: "⚡" },
+      { name: "TikTok", href: ENV_CONFIG.social.tiktok, icon: "🎵" },
     ]
   };
 
@@ -45,10 +46,10 @@ const Footer = () => {
             <div className="lg:col-span-2">
               <div className="mb-6">
                 <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-4">
-                  TacktixEdge
+                  {ENV_CONFIG.company.name}
                 </h3>
                 <p className="text-foreground/70 mb-4 leading-relaxed">
-                  Nigeria's premier competitive gaming platform. Where skill meets opportunity, 
+                  {ENV_CONFIG.company.tagline}. Where skill meets opportunity, 
                   and every game is a chance to win real money.
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -68,18 +69,18 @@ const Footer = () => {
               <div className="space-y-2 text-sm">
                 <div className="flex items-center space-x-2">
                   <Mail className="h-4 w-4 text-primary" />
-                  <span>tacktixedgedispute@gmail.com</span>
+                  <span>{ENV_CONFIG.support.email}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MessageCircle className="h-4 w-4 text-accent" />
-                  <span>WhatsApp: 08141826128</span>
+                  <span>WhatsApp: {ENV_CONFIG.support.phone}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Phone className="h-4 w-4 text-success" />
                   <span>Available 24/7 for support</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-foreground/70">📍 Lagos, Nigeria</span>
+                  <span className="text-foreground/70">📍 {ENV_CONFIG.support.location}</span>
                 </div>
               </div>
             </div>
@@ -177,7 +178,7 @@ const Footer = () => {
         <div className="py-6 border-t border-border/30">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="text-sm text-foreground/60">
-              © 2024 TacktixEdge. All rights reserved. 
+              © 2024 {ENV_CONFIG.company.name}. All rights reserved. 
               <span className="ml-2">Made with ❤️ for Nigerian gamers.</span>
             </div>
             
