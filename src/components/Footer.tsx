@@ -26,8 +26,8 @@ const Footer = () => {
       { name: "Discord", href: "https://discord.gg/3ZRHggav", icon: "💬" },
       { name: "WhatsApp", href: "https://wa.me/08141826128", icon: "📱" },
       { name: "Instagram", href: "https://www.instagram.com/tacktixedge", icon: "📷" },
-      { name: "Telegram", href: "#", icon: "⚡" },
-      { name: "TikTok", href: "#", icon: "🎵" },
+      { name: "Telegram", href: "https://t.me/tacktixedgechannel", icon: "⚡" },
+      { name: "TikTok", href: "https://tiktok.com/@tacktixedge", icon: "🎵" },
     ]
   };
 
