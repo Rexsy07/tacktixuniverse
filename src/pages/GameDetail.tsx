@@ -21,12 +21,7 @@ import {
   LeaderboardEntrySkeleton 
 } from "@/components/ui/game-skeletons";
 
-// Import game covers
-import codmCover from "@/assets/codm-cover.jpg";
-import pubgCover from "@/assets/pubg-cover.jpg";
-import freefireCover from "@/assets/freefire-cover.jpg";
-import eafcCover from "@/assets/eafc-cover.jpg";
-import pesCover from "@/assets/pes-cover.jpg";
+import { withBase } from "@/utils/url";
 
 const GameDetail = () => {
   const { slug } = useParams();
@@ -38,14 +33,6 @@ const GameDetail = () => {
   const { matches: openChallenges, refreshing: challengesRefreshing } = useMatches();
   const { globalLeaderboard } = useLeaderboards();
 
-  // Game cover mapping
-  const gameCovers: { [key: string]: string } = {
-    "call-of-duty-mobile": codmCover,
-    "pubg-mobile": pubgCover,
-    "free-fire": freefireCover,
-    "ea-fc-mobile": eafcCover,
-    "pes-mobile": pesCover
-  };
 
   useEffect(() => {
     if (slug) {
@@ -172,7 +159,7 @@ const GameDetail = () => {
       setGameData({
         ...game,
         modes: normalizedModes,
-        cover: gameCovers[slug as string] || codmCover,
+        cover: withBase(game.cover_image_url),
         playersOnline: onlinePlayers || 0,
         activeMatches: activeMatches || 0,
         avgStake: `₦${Math.round(avgStake)}`
