@@ -197,7 +197,13 @@ const AdminDashboard = () => {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold">Recent Transactions</h3>
-                  <Button variant="outline" size="sm">View All</Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigate("/admin/wallet")}
+                  >
+                    View All
+                  </Button>
                 </div>
                 
                 <div className="space-y-3">

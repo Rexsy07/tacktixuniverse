@@ -319,7 +319,20 @@ const GameDetail = () => {
                       Create Challenge
                     </Button>
                   </Link>
-                  <Button variant="outline" className="w-full glass-button">
+                  <Button 
+                    variant="outline" 
+                    className="w-full glass-button"
+                    onClick={() => {
+                      // Scroll to the Open Challenges tab
+                      const challengesTab = document.querySelector('[value="challenges"]');
+                      if (challengesTab) {
+                        (challengesTab as HTMLElement).click();
+                        setTimeout(() => {
+                          challengesTab.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                      }
+                    }}
+                  >
                     <Target className="mr-2 h-4 w-4" />
                     Find Match
                   </Button>
