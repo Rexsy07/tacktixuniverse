@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AdminSidebar from "@/components/AdminSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell, Send, Users, AlertCircle, CheckCircle, Clock, Calendar, Edit } from "lucide-react";
+import { Bell, Send, Users, Calendar, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,6 +19,8 @@ const AdminNotifications = () => {
   const [selectedAudience, setSelectedAudience] = useState("");
   const [targetQuery, setTargetQuery] = useState("");
   const [sending, setSending] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const handleSendNotification = async () => {
     if (!notificationTitle || !notificationText || !selectedAudience) {
@@ -44,7 +46,7 @@ const AdminNotifications = () => {
         }
         // Try to resolve username to user_id, or accept direct user_id
         let targetUserId = targetQuery.trim();
-        if (!/^([0-9a-f\-]{36})$/i.test(targetUserId)) {
+        if (!/^([0-9a-f\\-]{36})$/i.test(targetUserId)) {
           const { data: prof, error: profErr } = await supabase
             .from('profiles')
             .select('user_id, username')
@@ -74,6 +76,9 @@ const AdminNotifications = () => {
       setNotificationText("");
       setSelectedAudience("");
       setTargetQuery("");
+
+      // refresh history
+      await loadHistory();
     } catch (e: any) {
       toast.error(e.message || 'Failed to send notification');
     } finally {
@@ -93,51 +98,33 @@ const AdminNotifications = () => {
     toast.success("Notification saved as draft");
   };
 
-  const notifications = [
-    {
-      id: "N001",
-      title: "Tournament Registration Open",
-      message: "New CODM Championship registration is now open!",
-      audience: "All Users",
-      status: "sent",
-      sentAt: "2024-01-15 10:30",
-      opened: 234,
-      clicked: 67
-    },
-    {
-      id: "N002",
-      title: "Maintenance Notice",
-      message: "Platform will undergo maintenance tomorrow 2-4 AM",
-      audience: "All Users", 
-      status: "scheduled",
-      scheduledFor: "2024-01-16 01:00"
-    },
-    {
-      id: "N003",
-      title: "Wallet Verification Required",
-      message: "Please verify your wallet for withdrawals",
-      audience: "Unverified Users",
-      status: "draft"
-    }
-  ];
-
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case "sent": return "bg-green-500";
-      case "scheduled": return "bg-blue-500"; 
-      case "draft": return "bg-gray-500";
-      default: return "bg-yellow-500";
+  const loadHistory = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id, created_at, title, message, audience, target_user_id')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      setHistory(data || []);
+    } catch (e) {
+      console.error('Failed to load notifications history', e);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch(status) {
-      case "sent": return <CheckCircle className="h-4 w-4" />;
-      case "scheduled": return <Clock className="h-4 w-4" />;
-      case "draft": return <AlertCircle className="h-4 w-4" />;
-      default: return <Bell className="h-4 w-4" />;
-    }
-  };
+  useEffect(() => {
+    loadHistory();
+    const ch = supabase
+      .channel('admin-notifications-history')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => loadHistory())
+      .subscribe();
+    return () => {
+      try { ch.unsubscribe?.(); supabase.removeChannel?.(ch); } catch (_) {}
+    };
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -233,72 +220,38 @@ const AdminNotifications = () => {
                   <Bell className="h-5 w-5 mr-2" />
                   Notification History
                 </CardTitle>
-                <CardDescription>Recent notifications and their performance</CardDescription>
+                <CardDescription>Recent notifications sent via the platform</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {notifications.map((notification) => (
-                    <div key={notification.id} className="p-4 border rounded-lg">
+                  {loading && (
+                    <div className="text-sm text-muted-foreground">Loading...</div>
+                  )}
+                  {!loading && history.length === 0 && (
+                    <div className="text-sm text-muted-foreground">No notifications yet</div>
+                  )}
+                  {!loading && history.map((n) => (
+                    <div key={n.id} className="p-4 border rounded-lg">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <Badge variant="outline" className="capitalize flex items-center space-x-1">
-                              <div className={`w-2 h-2 rounded-full ${getStatusColor(notification.status)}`}></div>
-                              {getStatusIcon(notification.status)}
-                              <span>{notification.status}</span>
-                            </Badge>
-                            <Badge variant="secondary">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="secondary" className="capitalize">
                               <Users className="h-3 w-3 mr-1" />
-                              {notification.audience}
+                              {n.audience === 'all' ? 'All Users' : 'Individual User'}
                             </Badge>
+                            {n.target_user_id && (
+                              <Badge variant="outline" className="font-mono text-xs">{String(n.target_user_id).slice(0,8)}…</Badge>
+                            )}
                           </div>
-                          
-                          <h4 className="font-medium mb-1">{notification.title}</h4>
-                          <p className="text-sm text-muted-foreground mb-2">{notification.message}</p>
-                          
+                          <h4 className="font-medium mb-1">{n.title}</h4>
+                          <p className="text-sm text-muted-foreground mb-2">{n.message}</p>
                           <div className="text-xs text-muted-foreground">
-                            {notification.status === "sent" && (
-                              <div>
-                                Sent: {notification.sentAt} • 
-                                Opened: {notification.opened} • 
-                                Clicked: {notification.clicked}
-                              </div>
-                            )}
-                            {notification.status === "scheduled" && (
-                              <div>Scheduled for: {notification.scheduledFor}</div>
-                            )}
-                            {notification.status === "draft" && (
-                              <div>Draft - Not sent</div>
-                            )}
+                            Sent: {new Date(n.created_at).toLocaleString()}
                           </div>
                         </div>
-
                         <div className="flex space-x-2 ml-4">
-                          {notification.status === "draft" && (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => navigate(`/admin/notifications/edit/${notification.id}`)}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
-                            </Button>
-                          )}
-                          {notification.status === "scheduled" && (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => navigate(`/admin/notifications/edit/${notification.id}`)}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Modify
-                            </Button>
-                          )}
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            onClick={() => navigate(`/admin/notifications/${notification.id}`)}
-                          >
+                          <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/notifications/${n.id}`)}>
+                            <Eye className="h-4 w-4 mr-1" />
                             View
                           </Button>
                         </div>
@@ -306,49 +259,6 @@ const AdminNotifications = () => {
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Total Sent</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">127</div>
-                <p className="text-xs text-muted-foreground">This month</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Open Rate</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">78.5%</div>
-                <p className="text-xs text-muted-foreground">Average this month</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Click Rate</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">28.7%</div>
-                <p className="text-xs text-muted-foreground">Average this month</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">3</div>
-                <p className="text-xs text-muted-foreground">Pending notifications</p>
               </CardContent>
             </Card>
           </div>

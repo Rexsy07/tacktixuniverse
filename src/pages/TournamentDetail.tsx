@@ -184,6 +184,41 @@ const TournamentDetail = () => {
 
   const canRegister = tournament.status === 'registration' && !isRegistered;
 
+  const teamSize = useMemo(() => {
+    const raw = String(tournament.format || '1v1');
+    const n = parseInt(raw.split('v')[0]);
+    return isNaN(n) ? 1 : n;
+  }, [tournament.format]);
+
+  const canJoinSoloQueue = tournament.status === 'registration' && !isRegistered && teamSize > 1;
+
+  const handleJoinSoloQueue = async () => {
+    if (!user) {
+      toast.error('Please log in to join the solo queue');
+      navigate('/login');
+      return;
+    }
+    if (!tournament) return;
+
+    try {
+      const { error } = await supabase.rpc('register_tournament_solo_queue', {
+        p_tournament_id: tournament.id,
+        p_user_id: user.id,
+      });
+      if (error) throw error;
+
+      toast.success('Joined solo queue! We will assign you to a team when enough players are available.');
+
+      // Optionally try to form teams now (best-effort)
+      await supabase.rpc('assign_solo_teams_if_possible', { p_tournament_id: tournament.id });
+
+      // Refresh details
+      fetchTournament();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to join solo queue');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -212,16 +247,20 @@ const TournamentDetail = () => {
               </div>
             </div>
 
-            <div className="mt-4 md:mt-0">
-              {canRegister ? (
+            <div className="mt-4 md:mt-0 flex flex-col sm:flex-row gap-2">
+              {canRegister && (
                 <Button className="bg-gradient-to-r from-primary to-accent" onClick={handleRegister}>
                   <Trophy className="mr-2 h-4 w-4" />
                   Register Now
                 </Button>
-              ) : isRegistered ? (
+              )}
+              {canJoinSoloQueue && (
+                <Button variant="outline" onClick={handleJoinSoloQueue}>
+                  Join Solo Queue ({teamSize}v{teamSize})
+                </Button>
+              )}
+              {(!canRegister && isRegistered) && (
                 <Badge variant="secondary">Registered</Badge>
-              ) : (
-                <></>
               )}
             </div>
           </div>
@@ -232,6 +271,9 @@ const TournamentDetail = () => {
               <div className="text-2xl font-bold text-accent">
                 ₦{Number(tournament.entry_fee || 0).toLocaleString()}
               </div>
+              {teamSize > 1 && (
+                <div className="text-xs text-foreground/60 mt-1">Per player (solo queue will charge per player when a team is formed)</div>
+              )}
             </Card>
             <Card className="p-6">
               <div className="text-sm text-foreground/60">Prize Pool</div>

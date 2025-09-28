@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useAdminMatches } from "@/hooks/useAdminData";
 import { supabase } from "@/integrations/supabase/client";
 import AdminWinnerSelector from "@/components/AdminWinnerSelector";
+import AdminMatchResults from "@/components/AdminMatchResults";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -155,6 +156,10 @@ const AdminMatches = () => {
                       >
                         View
                       </Button>
+                      <AdminMatchResults 
+                        matchId={match.id}
+                        format={match.format}
+                      />
                       {(['in_progress','pending_result','disputed'].includes(match.status)) && (
                         <AdminWinnerSelector 
                           matchId={match.id}

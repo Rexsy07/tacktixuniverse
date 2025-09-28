@@ -243,8 +243,15 @@ const MatchDetail = () => {
   };
 
   const canUploadResult = () => {
-    return match?.status === 'in_progress' && 
-           (match?.creator_id === user?.id || match?.opponent_id === user?.id);
+    if (!match || match.status !== 'in_progress' || !user) return false;
+    
+    // Allow creator and direct opponent (for 1v1 matches)
+    const isDirectParticipant = match.creator_id === user.id || match.opponent_id === user.id;
+    
+    // Also allow team participants (for 1vX matches where opponents are in match_participants table)
+    const isTeamParticipantUpload = isTeamParticipant();
+    
+    return isDirectParticipant || isTeamParticipantUpload;
   };
 
   const isTeamParticipant = () => {
@@ -299,7 +306,23 @@ const MatchDetail = () => {
         throw new Error('Selected file is empty. Please choose another file.');
       }
 
-      const role = match.creator_id === user.id ? 'creator' : 'opponent';
+      // Determine role: creator, direct opponent, or team participant
+      const isCreator = match.creator_id === user.id;
+      const isDirectOpponent = match.opponent_id === user.id;
+      const isTeamParticipant = !isCreator && !isDirectOpponent && participants?.some(p => p.user_id === user.id);
+      
+      let role: string;
+      if (isCreator) {
+        role = 'creator';
+      } else if (isDirectOpponent) {
+        role = 'opponent';
+      } else if (isTeamParticipant) {
+        // For team participants, use a unique identifier to avoid file conflicts
+        role = `participant-${user.id}`;
+      } else {
+        throw new Error('User not authorized to upload proof for this match');
+      }
+      
       const safeName = sanitizeFileName(file.name);
       // Store proofs under a user-specific prefix to satisfy common Storage RLS policies
       // (e.g., name LIKE auth.uid() || '/%'). Also avoid upsert to not require UPDATE privilege.
@@ -319,23 +342,28 @@ const MatchDetail = () => {
         .from('match-proofs')
         .getPublicUrl(upload.path);
 
-      const update: any = role === 'creator'
-        ? { creator_proof_url: url.publicUrl }
-        : { opponent_proof_url: url.publicUrl };
+      // Insert proof into match_results for all roles (creator, opponent, or team participant)
+      const { error: insErr } = await supabase
+        .from('match_results')
+        .insert({
+          match_id: match.id,
+          uploader_id: user.id,
+          result_type: 'dispute',
+          result_data: { note: 'Proof uploaded' },
+          screenshot_url: url.publicUrl,
+        });
+      if (insErr) throw insErr;
 
-      // Move to pending_result once any proof is uploaded
-      if (match.status === 'in_progress') {
-        update.status = 'pending_result';
+      // If creator or direct opponent, also move match to pending_result
+      if ((isCreator || isDirectOpponent) && match.status === 'in_progress') {
+        const { error: updErr } = await supabase
+          .from('matches')
+          .update({ status: 'pending_result', updated_at: new Date().toISOString() })
+          .eq('id', match.id);
+        if (updErr) throw updErr;
       }
 
-      const { error: updErr } = await supabase
-        .from('matches')
-        .update({ ...update, updated_at: new Date().toISOString() })
-        .eq('id', match.id);
-
-      if (updErr) throw updErr;
-
-      toast.success('Proof uploaded');
+      toast.success(isCreator || isDirectOpponent ? 'Proof uploaded' : 'Proof uploaded for admin review');
       setFile(null);
       fetchMatchDetails(true);
     } catch (err: any) {

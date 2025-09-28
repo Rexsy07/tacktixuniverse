@@ -158,26 +158,45 @@ export const useAdminStats = () => {
       // Total revenue from platform_fees (sum of fee_amount)
       let totalRevenue = 0;
       try {
-        const { data: feesRows, error: feesError } = await supabase
-          .from('platform_fees')
-          .select('fee_amount');
-        if (feesError && feesError.code === 'PGRST205') {
-          console.warn('platform_fees table not found, defaulting to 0 revenue');
-          totalRevenue = 0;
-        } else if (feesError) {
-          throw feesError;
-        } else {
-          totalRevenue = (feesRows || []).reduce((sum, r: any) => sum + (r.fee_amount || 0), 0);
+        // Prefer RPC with definer rights, fallback to table
+        try {
+          const { data: summary, error: sumErr } = await supabase.rpc('admin_platform_fees_summary');
+          if (sumErr) throw sumErr;
+          const row = Array.isArray(summary) ? summary[0] : summary;
+          totalRevenue = Number(row?.lifetime || 0);
+        } catch (rpcErr: any) {
+          const { data: feesRows, error: feesError } = await supabase
+            .from('platform_fees')
+            .select('fee_amount');
+          if (feesError && feesError.code === 'PGRST205') {
+            console.warn('platform_fees table not found, defaulting to 0 revenue');
+            totalRevenue = 0;
+          } else if (feesError) {
+            throw feesError;
+          } else {
+            totalRevenue = (feesRows || []).reduce((sum, r: any) => sum + (r.fee_amount || 0), 0);
+          }
         }
       } catch (err: any) {
         console.warn('Could not fetch platform fees:', err.message);
         totalRevenue = 0;
       }
 
+      // Add tournament revenue (lifetime leftover from entries minus prize pools)
+      let tournamentRevenue = 0;
+      try {
+        const { data: trv, error: trvErr } = await supabase.rpc('admin_tournament_revenue_lifetime');
+        if (trvErr) throw trvErr;
+        tournamentRevenue = Number(trv || 0);
+      } catch (err: any) {
+        console.warn('Could not fetch tournament revenue:', err.message);
+        tournamentRevenue = 0;
+      }
+
       setStats({
         totalUsers: userCount || 0,
         activeUsers: activeUserSet.size,
-        totalRevenue,
+        totalRevenue: (totalRevenue || 0) + (tournamentRevenue || 0),
         pendingWithdrawals: withdrawalCount || 0,
         activeMatches: activeMatchCount || 0,
         completedToday: todayMatches || 0,
@@ -564,50 +583,64 @@ export const useAdminFees = () => {
     try {
       setLoading(true);
 
-      // Check if platform_fees table exists by trying to query it
-      const { data: lifetimeAgg, error: lifetimeErr } = await supabase
-        .from('platform_fees')
-        .select('fee_amount');
-      
-      // If table doesn't exist, return default empty values
-      if (lifetimeErr && lifetimeErr.code === 'PGRST205') {
-        console.warn('platform_fees table not found, using default values');
-        setFees({ lifetime: 0, today: 0, last30Days: 0, recent: [] });
-        return;
-      } else if (lifetimeErr) {
-        throw lifetimeErr;
+      // Try RPC with definer rights first (bypasses RLS)
+      let lifetime = 0;
+      let todayTotal = 0;
+      let last30Total = 0;
+      let recent: any[] = [];
+
+      try {
+        const { data: summary, error: sumErr } = await supabase.rpc('admin_platform_fees_summary');
+        if (sumErr) throw sumErr;
+        const row = Array.isArray(summary) ? summary[0] : summary;
+        lifetime = Number(row?.lifetime || 0);
+        todayTotal = Number(row?.today || 0);
+        last30Total = Number(row?.last30days || 0);
+
+        const { data: recentRows, error: recentErr } = await supabase.rpc('admin_platform_fees_recent', { p_limit: 20 });
+        if (recentErr) throw recentErr;
+        recent = recentRows || [];
+      } catch (rpcErr: any) {
+        // Fallback to direct table reads
+        const { data: lifetimeAgg, error: lifetimeErr } = await supabase
+          .from('platform_fees')
+          .select('fee_amount');
+        if (lifetimeErr && lifetimeErr.code === 'PGRST205') {
+          console.warn('platform_fees table not found, using default values');
+          setFees({ lifetime: 0, today: 0, last30Days: 0, recent: [] });
+          return;
+        } else if (lifetimeErr) {
+          throw lifetimeErr;
+        }
+        lifetime = (lifetimeAgg || []).reduce((s, r: any) => s + (r.fee_amount || 0), 0);
+
+        const today = new Date().toISOString().split('T')[0];
+        const { data: todayAgg, error: todayErr } = await supabase
+          .from('platform_fees')
+          .select('fee_amount, created_at')
+          .gte('created_at', `${today}T00:00:00.000Z`);
+        if (todayErr) throw todayErr;
+        todayTotal = (todayAgg || []).reduce((s, r: any) => s + (r.fee_amount || 0), 0);
+
+        const last30 = new Date();
+        last30.setDate(last30.getDate() - 30);
+        const { data: last30Agg, error: last30Err } = await supabase
+          .from('platform_fees')
+          .select('fee_amount, created_at')
+          .gte('created_at', last30.toISOString());
+        if (last30Err) throw last30Err;
+        last30Total = (last30Agg || []).reduce((s, r: any) => s + (r.fee_amount || 0), 0);
+
+        const { data: recentFallback, error: recentErr2 } = await supabase
+          .from('platform_fees')
+          .select('id, match_id, fee_amount, created_at')
+          .order('created_at', { ascending: false })
+          .limit(20);
+        if (recentErr2) throw recentErr2;
+        recent = recentFallback || [];
       }
 
-      const lifetime = (lifetimeAgg || []).reduce((s, r: any) => s + (r.fee_amount || 0), 0);
-
-      // Today
-      const today = new Date().toISOString().split('T')[0];
-      const { data: todayAgg, error: todayErr } = await supabase
-        .from('platform_fees')
-        .select('fee_amount, created_at')
-        .gte('created_at', `${today}T00:00:00.000Z`);
-      if (todayErr) throw todayErr;
-      const todayTotal = (todayAgg || []).reduce((s, r: any) => s + (r.fee_amount || 0), 0);
-
-      // Last 30 days
-      const last30 = new Date();
-      last30.setDate(last30.getDate() - 30);
-      const { data: last30Agg, error: last30Err } = await supabase
-        .from('platform_fees')
-        .select('fee_amount, created_at')
-        .gte('created_at', last30.toISOString());
-      if (last30Err) throw last30Err;
-      const last30Total = (last30Agg || []).reduce((s, r: any) => s + (r.fee_amount || 0), 0);
-
-      // Recent entries
-      const { data: recent, error: recentErr } = await supabase
-        .from('platform_fees')
-        .select('id, match_id, fee_amount, created_at')
-        .order('created_at', { ascending: false })
-        .limit(20);
-      if (recentErr) throw recentErr;
-
-      setFees({ lifetime, today: todayTotal, last30Days: last30Total, recent: recent || [] });
+      setFees({ lifetime, today: todayTotal, last30Days: last30Total, recent });
     } catch (error) {
       console.error('Error fetching fees:', error);
       toast.error('Failed to fetch platform fees');
