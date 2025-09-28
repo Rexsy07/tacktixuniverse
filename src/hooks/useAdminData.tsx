@@ -33,6 +33,7 @@ export interface AdminMatch {
   id: string;
   game: string;
   mode: string;
+  format: string;
   players: string[];
   stake_amount: number;
   status: string;
@@ -445,6 +446,7 @@ export const useAdminMatches = () => {
         id: match.id,
         game: match.games?.short_name || 'Unknown',
         mode: match.game_modes?.name || 'Unknown',
+        format: match.format || '1v1',
         players: [
           profilesById.get(match.creator_id)?.username || 'Unknown',
           match.opponent_id ? (profilesById.get(match.opponent_id)?.username || 'Unknown') : '—'

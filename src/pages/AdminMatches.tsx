@@ -9,6 +9,7 @@ import { CheckCircle, XCircle, Search, Filter, Gamepad2, Users, Clock, DollarSig
 import { toast } from "sonner";
 import { useAdminMatches } from "@/hooks/useAdminData";
 import { supabase } from "@/integrations/supabase/client";
+import AdminWinnerSelector from "@/components/AdminWinnerSelector";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -131,7 +132,9 @@ const AdminMatches = () => {
                       <div className={`w-3 h-3 rounded-full ${getStatusColor(match.status)}`}></div>
                       <div>
                         <div className="font-medium">{match.id} - {match.game}</div>
-                        <div className="text-sm text-muted-foreground">{match.mode}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {match.mode} • {match.format}
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">
@@ -153,28 +156,11 @@ const AdminMatches = () => {
                         View
                       </Button>
                       {(['in_progress','pending_result','disputed'].includes(match.status)) && (
-                        <div className="flex gap-2">
-                          {match.creator_id && (
-                            <Button 
-                              size="sm" 
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                              onClick={() => handleResolveDispute(match.id, match.creator_id)}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Set Winner: Creator
-                            </Button>
-                          )}
-                          {match.opponent_id && (
-                            <Button 
-                              size="sm" 
-                              className="bg-blue-600 hover:bg-blue-700 text-white"
-                              onClick={() => handleResolveDispute(match.id, match.opponent_id!)}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Set Winner: Opponent
-                            </Button>
-                          )}
-                        </div>
+                        <AdminWinnerSelector 
+                          matchId={match.id}
+                          format={match.format}
+                          onWinnerSet={refetch}
+                        />
                       )}
                       {(match.status === 'awaiting_opponent' || match.status === 'in_progress') && (
                         <Button

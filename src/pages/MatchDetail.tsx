@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import TeamParticipants from "@/components/TeamParticipants";
 import JoinTeamMatch from "@/components/JoinTeamMatch";
-import { getFormatDisplayName, isTeamFormat } from "@/utils/gameFormats";
+import { getFormatDisplayName, isTeamFormat, getTotalRequiredPlayers } from "@/utils/gameFormats";
 import { useMatchParticipants } from "@/hooks/useMatchParticipants";
 import { useMatchPot } from "@/hooks/useMatchPot";
 
@@ -81,10 +81,12 @@ const MatchDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Load participants to allow team members to mark match as done
   const { participants } = useMatchParticipants(matchId);
   const { pot, contributors, loading: potLoading, refetch: refetchPot } = useMatchPot(matchId);
+  const realtimeEnabled = import.meta.env.VITE_ENABLE_REALTIME !== 'false';
 
   useEffect(() => {
     if (matchId) {
@@ -92,9 +94,68 @@ const MatchDetail = () => {
     }
   }, [matchId]);
 
-  const fetchMatchDetails = async () => {
+  // Real-time subscriptions for smooth updates
+  useEffect(() => {
+    if (!matchId || !realtimeEnabled) return;
+
+    const channel = supabase
+      .channel(`match-detail-${matchId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'matches',
+          filter: `id=eq.${matchId}`,
+        },
+        () => {
+          // Refresh data without showing loading state to prevent visual jarring
+          fetchMatchDetails(true);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'match_participants',
+          filter: `match_id=eq.${matchId}`,
+        },
+        () => {
+          // Refresh when team participants change
+          fetchMatchDetails(true);
+          refetchPot();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      try {
+        channel.unsubscribe();
+        supabase.removeChannel(channel);
+      } catch (error) {
+        console.log('Error during channel cleanup:', error);
+      }
+    };
+  }, [matchId, realtimeEnabled]);
+
+  // Polling fallback (every 5 seconds)
+  useEffect(() => {
+    if (!matchId) return;
+    const interval = setInterval(() => {
+      fetchMatchDetails(true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [matchId]);
+
+  const fetchMatchDetails = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      // Only show loading spinner on initial load, not on refreshes to prevent visual jarring
+      if (!isRefresh && !match) {
+        setLoading(true);
+      } else if (isRefresh) {
+        setRefreshing(true);
+      }
       
       const { data, error } = await supabase
         .from('matches')
@@ -132,6 +193,7 @@ const MatchDetail = () => {
       console.error('Error fetching match details:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -209,7 +271,7 @@ const MatchDetail = () => {
       });
       if (error) throw error;
       toast.success('Match cancelled and funds refunded.');
-      fetchMatchDetails();
+      fetchMatchDetails(true);
     } catch (err: any) {
       toast.error(err.message || 'Failed to cancel match');
     }
@@ -275,7 +337,7 @@ const MatchDetail = () => {
 
       toast.success('Proof uploaded');
       setFile(null);
-      fetchMatchDetails();
+      fetchMatchDetails(true);
     } catch (err: any) {
       console.error('Upload proof error:', err);
       toast.error(err.message || 'Upload failed');
@@ -298,7 +360,7 @@ const MatchDetail = () => {
       if (updErr) throw updErr;
 
       toast.success('Notified admins. Awaiting winner selection.');
-      fetchMatchDetails();
+      fetchMatchDetails(true);
     } catch (err: any) {
       console.error('Error marking match done:', err);
       toast.error(err.message || 'Failed to notify admins');
@@ -318,7 +380,7 @@ const MatchDetail = () => {
       if (error) throw error;
       
       toast.success('Challenge accepted successfully!');
-      fetchMatchDetails(); // Refresh the match data
+      fetchMatchDetails(true); // Refresh the match data
     } catch (err: any) {
       const raw = err.message || '';
       const msg = raw.includes('INSUFFICIENT_FUNDS')
@@ -406,7 +468,13 @@ const MatchDetail = () => {
                 </p>
               </div>
               
-              <div className="mt-4 md:mt-0">
+              <div className="mt-4 md:mt-0 flex items-center gap-3">
+                {refreshing && (
+                  <div className="flex items-center gap-2 text-primary text-sm">
+                    <div className="animate-spin rounded-full h-3 w-3 border border-primary border-t-transparent"></div>
+                    <span className="text-xs">Updating...</span>
+                  </div>
+                )}
                 <Badge className={`${getStatusColor(match.status)} text-white flex items-center gap-2`}>
                   {getStatusIcon(match.status)}
                   {getStatusText(match.status)}
@@ -460,7 +528,19 @@ const MatchDetail = () => {
                       <div>
                         <span className="text-foreground/60 text-sm">Current Pot:</span>
                         <div className="font-semibold text-success text-xl">
-                          {potLoading ? '—' : `₦${pot.toLocaleString()}`} <span className="text-xs text-muted-foreground">({contributors} contributors)</span>
+                          {potLoading ? (
+                            <div className="flex items-center gap-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border border-success border-t-transparent"></div>
+                              <span>Loading...</span>
+                            </div>
+                          ) : (
+                            <>
+                              ₦{pot.toLocaleString()}
+                              <span className="text-xs text-muted-foreground ml-2">
+                                ({contributors} {contributors === 1 ? 'contributor' : 'contributors'})
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                       
@@ -519,7 +599,7 @@ const MatchDetail = () => {
                   matchId={match.id}
                   format={match.format}
                   creatorId={match.creator_id}
-                  onJoinSuccess={fetchMatchDetails}
+                  onJoinSuccess={() => fetchMatchDetails(true)}
                 />
               )}
 
@@ -658,18 +738,39 @@ const MatchDetail = () => {
                   
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-foreground/70">Total Stake:</span>
-                      <span className="font-semibold">₦{(match.stake_amount * 2).toLocaleString()}</span>
+                      <span className="text-foreground/70">Required Players:</span>
+                      <span className="font-semibold">{getTotalRequiredPlayers(match.format)}</span>
                     </div>
                     
                     <div className="flex justify-between">
-                      <span className="text-foreground/70">Winner Prize:</span>
-                      <span className="font-semibold text-success">₦{match.stake_amount.toLocaleString()}</span>
+                      <span className="text-foreground/70">Stake per Player:</span>
+                      <span className="font-semibold">₦{match.stake_amount.toLocaleString()}</span>
                     </div>
                     
                     <div className="flex justify-between">
-                      <span className="text-foreground/70">Platform Fee:</span>
-                      <span className="font-semibold">₦{(match.stake_amount * 0.05).toLocaleString()}</span>
+                      <span className="text-foreground/70">Expected Total Pot:</span>
+                      <span className="font-semibold">₦{(match.stake_amount * getTotalRequiredPlayers(match.format)).toLocaleString()}</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-foreground/70">Current Pot:</span>
+                      <span className="font-semibold text-success">
+                        {potLoading ? '—' : `₦${pot.toLocaleString()}`}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-foreground/70">Platform Fee (5%):</span>
+                      <span className="font-semibold text-muted-foreground">
+                        ₦{(pot * 0.05).toLocaleString()}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between border-t pt-3">
+                      <span className="text-foreground/70 font-semibold">Winner Takes:</span>
+                      <span className="font-bold text-success text-lg">
+                        ₦{Math.max(0, pot * 0.95).toLocaleString()}
+                      </span>
                     </div>
                   </div>
                 </div>

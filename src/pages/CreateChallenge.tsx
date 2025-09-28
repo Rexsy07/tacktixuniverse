@@ -16,13 +16,7 @@ import { useGames } from "@/hooks/useGames";
 import { useCreateChallenge } from "@/hooks/useCreateChallenge";
 import { supabase } from "@/integrations/supabase/client";
 import { getAvailableFormats, getFormatDisplayName, isValidFormat, isTeamFormat } from "@/utils/gameFormats";
-
-// Import game covers for preview
-import codmCover from "@/assets/codm-cover.jpg";
-import pubgCover from "@/assets/pubg-cover.jpg";
-import freefireCover from "@/assets/freefire-cover.jpg";
-import eafcCover from "@/assets/eafc-cover.jpg";
-import pesCover from "@/assets/pes-cover.jpg";
+import { withBase } from "@/utils/url";
 
 const CreateChallenge = () => {
   const navigate = useNavigate();
@@ -42,14 +36,6 @@ const CreateChallenge = () => {
     teamMembers: [] as string[]
   });
 
-  // Game cover mapping
-  const gameCovers: { [key: string]: string } = {
-    "CODM": codmCover,
-    "PUBG": pubgCover,
-    "FF": freefireCover,
-    "EA FC": eafcCover,
-    "PES": pesCover
-  };
 
   const selectedGame = games.find(game => game.id === challengeData.gameId);
   const selectedMode = gameModes.find(mode => mode.id === challengeData.modeId);
@@ -185,7 +171,7 @@ const CreateChallenge = () => {
                           >
                             <div className="p-3 text-center">
                               <img 
-                                src={gameCovers[game.short_name]}
+                                src={withBase(game.cover_image_url)}
                                 alt={game.name}
                                 className="w-full h-20 object-cover rounded mb-2"
                               />
@@ -371,7 +357,7 @@ const CreateChallenge = () => {
                   <div className="space-y-4">
                     <div className="text-center">
                       <img 
-                        src={gameCovers[selectedGame.short_name]}
+                        src={withBase(selectedGame.cover_image_url)}
                         alt={selectedGame.name}
                         className="w-full h-32 object-cover rounded-lg mb-3"
                       />

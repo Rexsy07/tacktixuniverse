@@ -51,6 +51,16 @@ export function useMatches() {
         },
         () => fetchUserMatches(true)
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'match_participants',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => fetchUserMatches(true)
+      )
       .subscribe();
 
     return () => {
@@ -82,15 +92,33 @@ export function useMatches() {
         setRefreshing(true);
       }
       
-      const { data, error } = await supabase
+      // Get matches where user is creator, opponent, or team participant
+      const { data: participantMatches, error: participantError } = await supabase
+        .from('match_participants')
+        .select('match_id')
+        .eq('user_id', user.id);
+
+      if (participantError) throw participantError;
+
+      const participantMatchIds = participantMatches?.map(p => p.match_id) || [];
+
+      let query = supabase
         .from('matches')
         .select(`
           *,
           games(*),
           game_modes(*)
         `)
-        .or(`creator_id.eq.${user.id},opponent_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
+
+      // Include matches where user is creator, opponent, OR team participant
+      if (participantMatchIds.length > 0) {
+        query = query.or(`creator_id.eq.${user.id},opponent_id.eq.${user.id},id.in.(${participantMatchIds.join(',')})`);
+      } else {
+        query = query.or(`creator_id.eq.${user.id},opponent_id.eq.${user.id}`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 

@@ -118,8 +118,8 @@ const DashboardMatches = () => {
   const handleAcceptChallenge = async (challengeId: string, format: string) => {
     if (!user) return;
 
-    // For team-based matches, navigate to match details where they can join teams flexibly
-    if (['2v2', '3v3', '5v5'].includes(format)) {
+    // For team-based matches (including asymmetric ones), navigate to match details where they can join teams flexibly
+    if (['1v2', '1v3', '1v4', '2v2', '3v3', '5v5'].includes(format)) {
       navigate(`/matches/${challengeId}`);
       return;
     }

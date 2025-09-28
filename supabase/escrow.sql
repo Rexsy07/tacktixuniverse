@@ -358,36 +358,25 @@ BEGIN
     v_loser_id := v_match.creator_id;
   END IF;
 
-  -- Refund winner's hold: cancel pending loss txn and add refund
+  -- Cancel all pending loss transactions
   UPDATE public.transactions
   SET status = 'cancelled', processed_at = now()
-  WHERE user_id = p_winner_id
-    AND metadata->>'match_id' = p_match_id::text
+  WHERE metadata->>'match_id' = p_match_id::text
     AND status = 'pending'
     AND type = 'match_loss';
 
+  -- Release all holds
   UPDATE public.wallet_holds
   SET status = 'released', released_at = now()
-  WHERE match_id = p_match_id AND user_id = p_winner_id;
+  WHERE match_id = p_match_id;
 
-  UPDATE public.user_wallets
-  SET balance = balance + v_stake, updated_at = now()
-  WHERE user_id = p_winner_id;
-
-  INSERT INTO public.transactions(user_id, amount, type, reference_code, description, status, metadata)
-  VALUES (p_winner_id, v_stake, 'refund', 'REFUND-' || p_match_id, 'Refund own stake (escrow release)', 'completed', jsonb_build_object('match_id', p_match_id));
-
-  -- Finalize loser hold
+  -- Finalize loser transaction (stake forfeited)
   UPDATE public.transactions
-  SET status = 'completed', processed_at = now()
+  SET status = 'completed', processed_at = now(), description = 'Stake forfeited (match loss)'
   WHERE user_id = v_loser_id
     AND metadata->>'match_id' = p_match_id::text
-    AND status = 'pending'
+    AND status = 'cancelled'
     AND type = 'match_loss';
-
-  UPDATE public.wallet_holds
-  SET status = 'released', released_at = now()
-  WHERE match_id = p_match_id AND user_id = v_loser_id;
 
   -- Determine fee percentage from settings if not provided
   SELECT fee_percentage INTO v_fee_pct
@@ -401,13 +390,13 @@ BEGIN
     v_fee_pct := p_fee_percentage;
   END IF;
 
-  -- Credit winner with opponent stake minus fee
-  v_fee := round(v_stake * (v_fee_pct / 100.0), 2);
+  -- Credit winner with total pot (both stakes) minus fee
+  v_fee := round((v_stake * 2) * (v_fee_pct / 100.0), 2);
   INSERT INTO public.transactions(user_id, amount, type, reference_code, description, status, metadata)
-  VALUES (p_winner_id, (v_stake - v_fee), 'match_win', 'WIN-' || p_match_id, 'Match winnings after fee', 'completed', jsonb_build_object('match_id', p_match_id, 'fee', v_fee, 'fee_pct', v_fee_pct));
+  VALUES (p_winner_id, ((v_stake * 2) - v_fee), 'match_win', 'WIN-' || p_match_id, 'Match winnings (full pot after fee)', 'completed', jsonb_build_object('match_id', p_match_id, 'total_pot', v_stake * 2, 'fee', v_fee, 'fee_pct', v_fee_pct));
 
   UPDATE public.user_wallets
-  SET balance = balance + (v_stake - v_fee), updated_at = now()
+  SET balance = balance + ((v_stake * 2) - v_fee), updated_at = now()
   WHERE user_id = p_winner_id;
 
   -- Record platform fee if table exists
