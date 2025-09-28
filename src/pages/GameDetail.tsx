@@ -359,7 +359,7 @@ const GameDetail = () => {
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-lg font-bold">{mode.name}</h3>
                           <Badge variant="secondary">
-                            ₦{mode.min_stake} - ₦{mode.max_stake}
+                            {mode.max_stake >= 10000000 ? `₦${mode.min_stake}+` : `₦${mode.min_stake} - ₦${mode.max_stake}`}
                           </Badge>
                         </div>
                         <p className="text-foreground/70 mb-4">{mode.description}</p>

@@ -165,10 +165,10 @@ const DashboardWallet = () => {
                       <Input
                         id="amount"
                         type="number"
-                        placeholder="Enter amount (min ₦100)"
+                        placeholder="Enter amount (min ₦500)"
                         value={depositAmount}
                         onChange={(e) => setDepositAmount(e.target.value)}
-                        min="100"
+                        min="500"
                         required
                       />
                     </div>
@@ -179,7 +179,7 @@ const DashboardWallet = () => {
                     </Button>
                   </form>
 
-                  {depositAmount && parseInt(depositAmount) >= 100 && (
+                  {depositAmount && parseInt(depositAmount) >= 500 && (
                     <div className="bg-muted/20 rounded-lg p-4">
                       <h4 className="font-semibold mb-3 flex items-center">
                         <CreditCard className="mr-2 h-4 w-4" />

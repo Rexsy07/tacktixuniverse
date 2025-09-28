@@ -107,8 +107,8 @@ const CreateChallenge = () => {
       return;
     }
     
-    if (parseInt(challengeData.stake) < 100) {
-      toast.error("Minimum stake is ₦100");
+    if (parseInt(challengeData.stake) < 500) {
+      toast.error("Minimum stake is ₦500");
       return;
     }
 
@@ -269,10 +269,10 @@ const CreateChallenge = () => {
                     <Input
                       id="stake"
                       type="number"
-                      placeholder="Enter stake amount (min ₦100)"
+                      placeholder="Enter stake amount (min ₦500)"
                       value={challengeData.stake}
                       onChange={(e) => setChallengeData(prev => ({ ...prev, stake: e.target.value }))}
-                      min="100"
+                      min="500"
                       className="mt-2"
                       required
                     />

@@ -129,7 +129,7 @@ const Support = () => {
     {
       category: "gaming",
       question: "How do I create a challenge?",
-      answer: "Go to your game's page, click 'Create Challenge', choose game mode, set stake amount (₦200-₦10,000), define rules (maps, weapon restrictions, etc.), and publish. Your stake is locked in escrow until the match is resolved."
+      answer: "Go to your game's page, click 'Create Challenge', choose game mode, set stake amount (₦500+), define rules (maps, weapon restrictions, etc.), and publish. Your stake is locked in escrow until the match is resolved."
     },
     {
       category: "gaming",
