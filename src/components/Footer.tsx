@@ -23,8 +23,9 @@ const Footer = () => {
       { name: "KYC Policy", href: "/legal/kyc" },
     ],
     social: [
-      { name: "Discord", href: "#", icon: "💬" },
-      { name: "WhatsApp", href: "#", icon: "📱" },
+      { name: "Discord", href: "https://discord.gg/3ZRHggav", icon: "💬" },
+      { name: "WhatsApp", href: "https://wa.me/08141826128", icon: "📱" },
+      { name: "Instagram", href: "https://www.instagram.com/tacktixedge", icon: "📷" },
       { name: "Telegram", href: "#", icon: "⚡" },
       { name: "TikTok", href: "#", icon: "🎵" },
     ]
@@ -67,15 +68,18 @@ const Footer = () => {
               <div className="space-y-2 text-sm">
                 <div className="flex items-center space-x-2">
                   <Mail className="h-4 w-4 text-primary" />
-                  <span>support@tacktixedge.com</span>
+                  <span>tacktixedgedispute@gmail.com</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MessageCircle className="h-4 w-4 text-accent" />
-                  <span>WhatsApp: +234 900 123 4567</span>
+                  <span>WhatsApp: 08141826128</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Phone className="h-4 w-4 text-success" />
                   <span>Available 24/7 for support</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-foreground/70">📍 Lagos, Nigeria</span>
                 </div>
               </div>
             </div>

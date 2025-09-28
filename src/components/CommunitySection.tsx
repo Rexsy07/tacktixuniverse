@@ -77,7 +77,7 @@ const CommunitySection = () => {
       members: "3.2K",
       description: "Join live discussions, find teammates, get support",
       cta: "Join Server",
-      url: "https://discord.gg/tacktixedge"
+      url: "https://discord.gg/3ZRHggav"
     },
     {
       platform: "WhatsApp",
@@ -85,7 +85,7 @@ const CommunitySection = () => {
       members: "1.8K",
       description: "Quick support, updates, and community chat",
       cta: "Join Group",
-      url: "https://wa.me/+2348000000000"
+      url: "https://wa.me/08141826128"
     },
     {
       platform: "Telegram",
@@ -93,7 +93,15 @@ const CommunitySection = () => {
       members: "2.1K",
       description: "Tournament announcements and live match updates",
       cta: "Follow Channel",
-      url: "https://t.me/tacktixedge"
+      url: "https://t.me/tacktixedgechannel"
+    },
+    {
+      platform: "Instagram",
+      icon: "📷",
+      members: "2.8K",
+      description: "Gaming highlights, behind the scenes, and community posts",
+      cta: "Follow Us",
+      url: "https://www.instagram.com/tacktixedge"
     },
     {
       platform: "TikTok",

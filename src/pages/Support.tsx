@@ -57,7 +57,7 @@ const Support = () => {
       icon: MessageCircle,
       title: "WhatsApp Support",
       description: "Get instant help via WhatsApp",
-      contact: "+234 809 123 4567",
+      contact: "08141826128",
       availability: "24/7",
       color: "text-success",
       bgColor: "bg-success/20"
@@ -66,7 +66,7 @@ const Support = () => {
       icon: MessageCircle,
       title: "Discord Community",
       description: "Join our gaming community",
-      contact: "discord.gg/tacktixedge",
+      contact: "discord.gg/3ZRHggav",
       availability: "24/7",
       color: "text-accent",
       bgColor: "bg-accent/20"
@@ -75,7 +75,7 @@ const Support = () => {
       icon: Mail,
       title: "Email Support",
       description: "Detailed support via email",
-      contact: "support@tacktixedge.com",
+      contact: "tacktixedgedispute@gmail.com",
       availability: "24-48 hours",
       color: "text-primary",
       bgColor: "bg-primary/20"

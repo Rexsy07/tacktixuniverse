@@ -54,9 +54,9 @@ const SupportContact = () => {
               <div className="prose prose-invert max-w-none mt-12">
                 <h2 className="text-2xl font-bold">Other Channels</h2>
                 <ul className="list-disc pl-6 text-foreground/80">
-                  <li>Email: support@tacktixedge.com</li>
-                  <li>WhatsApp: +234 809 123 4567</li>
-                  <li>Discord: discord.gg/tacktixedge</li>
+                  <li>Email: tacktixedgedispute@gmail.com</li>
+                  <li>WhatsApp: 08141826128</li>
+                  <li>Discord: discord.gg/3ZRHggav</li>
                 </ul>
               </div>
             </div>

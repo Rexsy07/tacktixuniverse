@@ -31,9 +31,9 @@ const DashboardWallet = () => {
 
   // Bank details for deposits
   const bankInfo = {
-    accountName: "TacktixEdge Gaming Ltd",
-    accountNumber: "1234567890",
-    bankName: "First Bank of Nigeria",
+    accountName: "Chippercash/eze onyinyechi",
+    accountNumber: "9851479231",
+    bankName: "PAYSTACK-TITAN",
     sortCode: "011"
   };
 
