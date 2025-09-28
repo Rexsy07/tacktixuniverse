@@ -54,17 +54,19 @@ export function useLeaderboards() {
     try {
       setLoading(true);
 
-      // Since we don't have user_stats table, compute leaderboard from matches and wallets
-      const { data: walletsData, error: walletsError } = await supabase
-        .from('user_wallets')
-        .select('user_id, balance')
-        .order('balance', { ascending: false })
-        .limit(50);
+      // Fetch public leaderboard via RPC (secured by RLS-safe function)
+      const { data: leaderboardData, error: leaderboardError } = await supabase
+        .rpc('get_public_leaderboard');
 
-      if (walletsError) throw walletsError;
+      if (leaderboardError) throw leaderboardError;
+
+      // Sort by balance desc and take top 100
+      const walletsData = (leaderboardData || [])
+        .sort((a: any, b: any) => (b.balance || 0) - (a.balance || 0))
+        .slice(0, 100);
 
       // Fetch profiles for these users
-      const userIds = walletsData?.map(w => w.user_id) || [];
+      const userIds = walletsData?.map((w: any) => w.user_id) || [];
       
       if (userIds.length === 0) {
         setGlobalLeaderboard([]);
@@ -79,23 +81,52 @@ export function useLeaderboards() {
 
       if (profilesError) throw profilesError;
 
-      // Compute stats for each user from matches
-      const processedGlobal = await Promise.all(walletsData?.map(async (wallet, index) => {
-        const profile = profilesData?.find(p => p.user_id === wallet.user_id);
+      // Optimized batch query: Get match stats for all users in one query
+      const { data: allMatches, error: matchesError } = await supabase
+        .from('matches')
+        .select('creator_id, opponent_id, winner_id')
+        .or(`creator_id.in.(${userIds.join(',')}),opponent_id.in.(${userIds.join(',')})`);
+
+      if (matchesError) {
+        console.warn('Error fetching matches for global leaderboard:', matchesError);
+      }
+
+      // Compute stats efficiently by processing all matches once
+      const userStats = new Map<string, { total_matches: number; total_wins: number }>();
+      
+      // Initialize stats for all users
+      userIds.forEach(userId => {
+        userStats.set(userId, { total_matches: 0, total_wins: 0 });
+      });
+
+      // Process matches to compute stats
+      (allMatches || []).forEach(match => {
+        // Count matches and wins for creator
+        if (match.creator_id && userIds.includes(match.creator_id)) {
+          const stats = userStats.get(match.creator_id)!;
+          stats.total_matches += 1;
+          if (match.winner_id === match.creator_id) {
+            stats.total_wins += 1;
+          }
+        }
         
-        // Get match stats for this user
-        const { count: totalMatches } = await supabase
-          .from('matches')
-          .select('*', { count: 'exact', head: true })
-          .or(`creator_id.eq.${wallet.user_id},opponent_id.eq.${wallet.user_id}`);
+        // Count matches and wins for opponent
+        if (match.opponent_id && userIds.includes(match.opponent_id)) {
+          const stats = userStats.get(match.opponent_id)!;
+          stats.total_matches += 1;
+          if (match.winner_id === match.opponent_id) {
+            stats.total_wins += 1;
+          }
+        }
+      });
 
-        const { count: totalWins } = await supabase
-          .from('matches')
-          .select('*', { count: 'exact', head: true })
-          .eq('winner_id', wallet.user_id);
-
-        const total_matches = totalMatches || 0;
-        const total_wins = totalWins || 0;
+      // Create processed global leaderboard
+      const processedGlobal = walletsData?.map((wallet, index) => {
+        const profile = profilesData?.find(p => p.user_id === wallet.user_id);
+        const stats = userStats.get(wallet.user_id) || { total_matches: 0, total_wins: 0 };
+        
+        const total_matches = stats.total_matches;
+        const total_wins = stats.total_wins;
         const total_losses = Math.max(total_matches - total_wins, 0);
         
         return {
@@ -112,7 +143,7 @@ export function useLeaderboards() {
           rank: index + 1,
           badge: index < 3 ? ['Champion', 'Runner-up', 'Third Place'][index] : undefined
         };
-      }) || []);
+      }) || [];
 
       setGlobalLeaderboard(processedGlobal);
 
@@ -127,8 +158,23 @@ export function useLeaderboards() {
       // For each game, compute leaderboard based on net match winnings (sum of match_win transactions)
       const gameLeaderboardsData: { [gameId: string]: LeaderboardEntry[] } = {};
 
-      // Use default platform fee percentage for net-win calculation.
-      const FEE_PCT = 5; // falls back to 5% if settings not readable under RLS
+      // Fetch platform fee percentage from latest settings row, with fallback to 5%
+      let FEE_PCT = 5;
+      try {
+        const { data: settingsRows, error: settingsErr } = await supabase
+          .from('platform_settings')
+          .select('fee_percentage, updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(1);
+        if (!settingsErr && settingsRows && settingsRows.length > 0) {
+          const v = settingsRows[0].fee_percentage;
+          if (typeof v === 'number' && !Number.isNaN(v)) {
+            FEE_PCT = v;
+          }
+        }
+      } catch (e) {
+        // ignore, will use fallback of 5%
+      }
 
       for (const game of games || []) {
         // Fetch completed matches for this game
@@ -221,7 +267,7 @@ export function useLeaderboards() {
       console.error('Error fetching leaderboards:', err);
     } finally {
       if (!hasLoaded) setHasLoaded(true);
-      setLoading(!isRefresh && !hasLoaded ? false : false);
+      setLoading(false);
     }
   };
 

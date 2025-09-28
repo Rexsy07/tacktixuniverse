@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Crown, Medal, Star, Gamepad2, TrendingUp } from "lucide-react";
+import { Trophy, Crown, Medal, Star, Gamepad2, TrendingUp, AlertCircle } from "lucide-react";
 import { Header } from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useLeaderboards } from "@/hooks/useLeaderboards";
@@ -12,7 +12,7 @@ import { useGames } from "@/hooks/useGames";
 const Leaderboards = () => {
   const [timePeriod, setTimePeriod] = useState("weekly");
   const [selectedGame, setSelectedGame] = useState("global");
-  const { globalLeaderboard, gameLeaderboards, loading } = useLeaderboards();
+  const { globalLeaderboard, gameLeaderboards, loading, error } = useLeaderboards();
   const { games } = useGames();
 
   const currentLeaderboard = selectedGame === 'global' 
@@ -50,7 +50,17 @@ const Leaderboards = () => {
 
         <section className="py-8">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <Tabs value={selectedGame} onValueChange={setSelectedGame} className="w-full">
+            <Tabs value={selectedGame === 'global' ? 'global' : 'games'} onValueChange={(value) => {
+              if (value === 'global') {
+                setSelectedGame('global');
+              } else {
+                // Default to first available game when switching to games tab
+                const firstGame = games[0]?.id;
+                if (firstGame) {
+                  setSelectedGame(firstGame);
+                }
+              }
+            }} className="w-full">
               <TabsList className="grid w-full grid-cols-2 glass-card mb-8">
                 <TabsTrigger value="global">Global Ranking</TabsTrigger>
                 <TabsTrigger value="games">Game Rankings</TabsTrigger>
@@ -62,6 +72,15 @@ const Leaderboards = () => {
                     <div className="text-center py-12">
                       <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
                       <p className="mt-4 text-foreground/70">Loading leaderboard...</p>
+                    </div>
+                  ) : error ? (
+                    <div className="text-center py-12">
+                      <AlertCircle className="h-16 w-16 mx-auto text-red-500 mb-4" />
+                      <h3 className="text-xl font-semibold mb-2 text-red-600">Error Loading Leaderboard</h3>
+                      <p className="text-foreground/70 mb-4">{error}</p>
+                      <Button onClick={() => window.location.reload()} variant="outline">
+                        Try Again
+                      </Button>
                     </div>
                   ) : currentLeaderboard.length === 0 ? (
                     <div className="text-center py-12">
@@ -120,38 +139,106 @@ const Leaderboards = () => {
               </TabsContent>
 
               <TabsContent value="games">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {games.map((game) => (
-                    <Card key={game.id} className="glass-card">
-                      <div className="p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-primary to-accent flex items-center justify-center">
-                            <Gamepad2 className="h-6 w-6 text-white" />
-                          </div>
-                          <div>
-                            <h3 className="font-bold text-lg">{game.name}</h3>
-                            <p className="text-sm text-foreground/70">Top Players</p>
-                          </div>
-                        </div>
+                <div className="space-y-6">
+                  {/* Game selector */}
+                  <div className="flex flex-wrap gap-2">
+                    {games.map((game) => (
+                      <Button
+                        key={game.id}
+                        variant={selectedGame === game.id ? "default" : "outline"}
+                        onClick={() => setSelectedGame(game.id)}
+                        className="flex items-center gap-2"
+                      >
+                        <Gamepad2 className="h-4 w-4" />
+                        {game.name}
+                      </Button>
+                    ))}
+                  </div>
 
-                        <div className="space-y-3">
-                          {(gameLeaderboards[game.id] || []).slice(0, 3).map((entry, index) => (
-                            <div key={entry.user_id} className="flex items-center justify-between p-2 glass rounded">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">
-                                  <span className="text-white text-xs font-bold">{index + 1}</span>
-                                </div>
-                                <span className="font-medium text-sm">{entry.username}</span>
-                              </div>
-                              <span className="text-success font-semibold text-sm">
-                                ₦{entry.total_earnings.toLocaleString()}
-                              </span>
+                  {/* Selected game leaderboard */}
+                  {selectedGame !== 'global' && (
+                    <div className="space-y-4">
+                      {loading ? (
+                        <div className="text-center py-12">
+                          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
+                          <p className="mt-4 text-foreground/70">Loading game leaderboard...</p>
+                        </div>
+                      ) : error ? (
+                        <div className="text-center py-12">
+                          <AlertCircle className="h-16 w-16 mx-auto text-red-500 mb-4" />
+                          <h3 className="text-xl font-semibold mb-2 text-red-600">Error Loading Game Leaderboard</h3>
+                          <p className="text-foreground/70 mb-4">{error}</p>
+                          <Button onClick={() => window.location.reload()} variant="outline">
+                            Try Again
+                          </Button>
+                        </div>
+                      ) : (gameLeaderboards[selectedGame] || []).length === 0 ? (
+                        <div className="text-center py-12">
+                          <Trophy className="h-16 w-16 mx-auto text-foreground/30 mb-4" />
+                          <h3 className="text-xl font-semibold mb-2">No Rankings Yet</h3>
+                          <p className="text-foreground/70">No matches played for this game yet!</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-3 mb-6">
+                            <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-primary to-accent flex items-center justify-center">
+                              <Gamepad2 className="h-6 w-6 text-white" />
                             </div>
+                            <div>
+                              <h3 className="font-bold text-xl">
+                                {games.find(g => g.id === selectedGame)?.name} Leaderboard
+                              </h3>
+                              <p className="text-foreground/70">Top players ranked by earnings</p>
+                            </div>
+                          </div>
+                          
+                          {(gameLeaderboards[selectedGame] || []).map((entry, index) => (
+                            <Card key={entry.user_id} className="glass-card">
+                              <div className="p-6">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-4">
+                                    <div className="relative">
+                                      {getRankIcon(index + 1)}
+                                      <Badge className="absolute -top-2 -right-2 text-xs" variant="secondary">
+                                        #{index + 1}
+                                      </Badge>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">
+                                        <span className="text-white font-bold text-lg">
+                                          {entry.username[0]?.toUpperCase()}
+                                        </span>
+                                      </div>
+                                      
+                                      <div>
+                                        <h3 className="font-bold text-lg">{entry.username}</h3>
+                                        <div className="flex items-center gap-2">
+                                          <Badge variant="outline" className="text-xs">
+                                            {entry.total_matches} matches
+                                          </Badge>
+                                          <Badge variant="outline" className="text-xs">
+                                            {entry.win_rate.toFixed(1)}% win rate
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="text-right">
+                                    <div className="text-2xl font-bold text-success">
+                                      ₦{entry.total_earnings.toLocaleString()}
+                                    </div>
+                                    <div className="text-sm text-foreground/70">Game Earnings</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </Card>
                           ))}
                         </div>
-                      </div>
-                    </Card>
-                  ))}
+                      )}
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
