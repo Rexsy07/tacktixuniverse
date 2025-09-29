@@ -111,7 +111,7 @@ const TournamentsSection = () => {
             {tournaments.filter(t => t.status !== 'live').map((tournament) => (
               <div key={tournament.id} className="card-slot card-slot--tournament">
                 <Card className="glass-card game-card overflow-hidden">
-                  <div className="p-6">
+                  <div className="p-6 min-w-0">
                   {/* Tournament Header */}
                   <div className="flex items-center justify-between mb-4">
                     <Badge variant="secondary" className="font-semibold">
@@ -123,7 +123,7 @@ const TournamentsSection = () => {
                   </div>
 
                   {/* Tournament Title */}
-                  <h3 className="text-lg font-bold mb-2">{tournament.name}</h3>
+                  <h3 className="text-lg font-bold mb-2 line-clamp-2 break-words">{tournament.name}</h3>
 
                   {/* Prize Pool */}
                   <div className="text-center mb-4 p-3 glass rounded-lg">
@@ -135,23 +135,23 @@ const TournamentsSection = () => {
 
                   {/* Tournament Details */}
                   <div className="space-y-2 mb-4">
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-sm gap-3 min-w-0">
                       <span className="text-foreground/70">Entry Fee:</span>
-                      <span className="font-semibold text-accent">{tournament.entryFee}</span>
+                      <span className="font-semibold text-accent truncate max-w-[60%] text-right sm:text-left">{tournament.entryFee}</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-sm gap-3 min-w-0">
                       <span className="text-foreground/70">Format:</span>
-                      <span className="font-semibold">{tournament.format}</span>
+                      <span className="font-semibold truncate max-w-[60%] text-right sm:text-left">{tournament.format}</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-sm gap-3 min-w-0">
                       <span className="text-foreground/70">Players:</span>
-                      <span className="font-semibold">
+                      <span className="font-semibold truncate max-w-[60%] text-right sm:text-left">
                         {tournament.participants}/{tournament.maxParticipants}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-sm gap-3 min-w-0">
                       <span className="text-foreground/70">Start Date:</span>
-                      <span className="font-semibold text-primary">{tournament.startDate}</span>
+                      <span className="font-semibold text-primary truncate max-w-[60%] text-right sm:text-left">{tournament.startDate}</span>
                     </div>
                   </div>
 

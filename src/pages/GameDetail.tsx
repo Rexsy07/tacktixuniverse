@@ -1,18 +1,20 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Trophy, Users, Zap, Clock, Target, Crown, 
-  ArrowLeft, Filter, Calendar, Coins 
+  ArrowLeft, Filter, Calendar, Coins, Eye 
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { useMatches } from "@/hooks/useMatches";
 import { useLeaderboards } from "@/hooks/useLeaderboards";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 import { RefreshOverlay, RefreshIndicator } from "@/components/ui/refresh-indicator";
 import { 
   GameHeroSkeleton, 
@@ -25,6 +27,8 @@ import { withBase } from "@/utils/url";
 
 const GameDetail = () => {
   const { slug } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [stakeFilter, setStakeFilter] = useState("all");
   const [gameData, setGameData] = useState<any>(null);
   const [gameModes, setGameModes] = useState<any[]>([]);
@@ -174,6 +178,18 @@ const GameDetail = () => {
     }
   };
 
+  const handleAcceptChallenge = (matchId: string) => {
+    if (!user) {
+      toast.error("Please log in to accept challenges");
+      navigate("/auth");
+      return;
+    }
+    
+    // Navigate to the match detail page where users can accept the challenge
+    navigate(`/match/${matchId}`);
+    toast.success("Redirecting to match details...");
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -310,14 +326,23 @@ const GameDetail = () => {
                     variant="outline" 
                     className="w-full glass-button"
                     onClick={() => {
-                      // Scroll to the Open Challenges tab
-                      const challengesTab = document.querySelector('[value="challenges"]');
-                      if (challengesTab) {
-                        (challengesTab as HTMLElement).click();
-                        setTimeout(() => {
-                          challengesTab.scrollIntoView({ behavior: 'smooth' });
-                        }, 100);
+                      if (!user) {
+                        // For non-logged users, show available challenges on the same page
+                        const challengesTab = document.querySelector('[value="challenges"]');
+                        if (challengesTab) {
+                          (challengesTab as HTMLElement).click();
+                          setTimeout(() => {
+                            challengesTab.scrollIntoView({ behavior: 'smooth' });
+                          }, 100);
+                        }
+                        toast.info("Showing available challenges. Log in to accept them!");
+                        return;
                       }
+                      
+                      // Navigate to matches page where users can see all available challenges
+                      // Add the current game as a query parameter for potential filtering
+                      navigate(`/matches?game=${gameData.short_name || gameData.id}`);
+                      toast.success(`Finding matches for ${gameData.name}...`);
                     }}
                   >
                     <Target className="mr-2 h-4 w-4" />
@@ -339,11 +364,11 @@ const GameDetail = () => {
         <section className="py-8">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <Tabs defaultValue="modes" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 glass-card">
-                <TabsTrigger value="modes">Game Modes</TabsTrigger>
-                <TabsTrigger value="challenges">Open Challenges</TabsTrigger>
-                <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-                <TabsTrigger value="stats">Statistics</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 glass-card">
+                <TabsTrigger value="modes" className="text-xs sm:text-sm py-2 sm:py-3 text-center">Game Modes</TabsTrigger>
+                <TabsTrigger value="challenges" className="text-xs sm:text-sm py-2 sm:py-3 text-center">Open Challenges</TabsTrigger>
+                <TabsTrigger value="leaderboard" className="text-xs sm:text-sm py-2 sm:py-3 text-center">Leaderboard</TabsTrigger>
+                <TabsTrigger value="stats" className="text-xs sm:text-sm py-2 sm:py-3 text-center">Statistics</TabsTrigger>
               </TabsList>
               
               {/* Game Modes */}
@@ -478,10 +503,26 @@ const GameDetail = () => {
                                 </div>
                               </div>
                               
-                              <div className="mt-4 md:mt-0">
-                                <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
-                                  Accept Challenge
-                                </Button>
+                              <div className="mt-4 md:mt-0 flex gap-2">
+                                <Link to={`/match/${challenge.id}`}>
+                                  <Button variant="outline" className="glass-button">
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    View Match
+                                  </Button>
+                                </Link>
+                                {user?.id !== challenge.creator_id && (
+                                  <Button 
+                                    className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                                    onClick={() => handleAcceptChallenge(challenge.id)}
+                                  >
+                                    Accept Challenge
+                                  </Button>
+                                )}
+                                {user?.id === challenge.creator_id && (
+                                  <Button variant="outline" disabled>
+                                    Your Challenge
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -507,8 +548,8 @@ const GameDetail = () => {
                     ) : (
                       <div className="space-y-4">
                         {gameLeaderboard.map((entry, index) => (
-                          <div key={entry.user_id} className="flex items-center justify-between p-4 glass rounded-lg">
-                            <div className="flex items-center gap-4">
+                          <div key={entry.user_id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 glass rounded-lg">
+                            <div className="flex items-center gap-4 min-w-0">
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
                                 index === 0 ? 'bg-yellow-500' : 
                                 index === 1 ? 'bg-gray-400' : 
@@ -516,14 +557,14 @@ const GameDetail = () => {
                               } text-white`}>
                                 {index + 1}
                               </div>
-                              <div>
-                                <div className="font-semibold">{entry.username || 'Anonymous'}</div>
-                                <div className="text-sm text-foreground/70">
+                              <div className="min-w-0">
+                                <div className="font-semibold truncate">{entry.username || 'Anonymous'}</div>
+                                <div className="text-sm text-foreground/70 truncate">
                                   {entry.total_matches} matches • {entry.win_rate}% win rate
                                 </div>
                               </div>
                             </div>
-                            <div className="text-right">
+                            <div className="sm:text-right w-full sm:w-auto">
                               <div className="font-bold text-success">
                                 ₦{entry.total_earnings.toLocaleString()}
                               </div>

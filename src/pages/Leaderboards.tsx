@@ -61,9 +61,9 @@ const Leaderboards = () => {
                 }
               }
             }} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 glass-card mb-8">
-                <TabsTrigger value="global">Global Ranking</TabsTrigger>
-                <TabsTrigger value="games">Game Rankings</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 gap-2 glass-card mb-8">
+                <TabsTrigger value="global" className="text-sm sm:text-base py-2 sm:py-3">Global Ranking</TabsTrigger>
+                <TabsTrigger value="games" className="text-sm sm:text-base py-2 sm:py-3">Game Rankings</TabsTrigger>
               </TabsList>
               
               <TabsContent value="global">
@@ -92,25 +92,25 @@ const Leaderboards = () => {
                     currentLeaderboard.map((entry, index) => (
                       <Card key={entry.user_id} className="glass-card">
                         <div className="p-6">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <div className="relative">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                              <div className="relative shrink-0">
                                 {getRankIcon(index + 1)}
                                 <Badge className="absolute -top-2 -right-2 text-xs" variant="secondary">
                                   #{index + 1}
                                 </Badge>
                               </div>
                               
-                              <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center shrink-0">
                                   <span className="text-white font-bold text-lg">
                                     {entry.username[0]?.toUpperCase()}
                                   </span>
                                 </div>
                                 
-                                <div>
-                                  <h3 className="font-bold text-lg">{entry.username}</h3>
-                                  <div className="flex items-center gap-2">
+                                <div className="min-w-0">
+                                  <h3 className="font-bold text-base sm:text-lg truncate">{entry.username}</h3>
+                                  <div className="flex flex-wrap items-center gap-2">
                                     <Badge variant="outline" className="text-xs">
                                       {entry.favorite_game || 'Mixed'}
                                     </Badge>
@@ -124,8 +124,8 @@ const Leaderboards = () => {
                               </div>
                             </div>
                             
-                            <div className="text-right">
-                              <div className="text-2xl font-bold text-success">
+                            <div className="text-left sm:text-right w-full sm:w-auto">
+                              <div className="text-xl sm:text-2xl font-bold text-success">
                                 ₦{entry.total_earnings.toLocaleString()}
                               </div>
                               <div className="text-sm text-foreground/70">Total Earnings</div>
@@ -195,25 +195,25 @@ const Leaderboards = () => {
                           {(gameLeaderboards[selectedGame] || []).map((entry, index) => (
                             <Card key={entry.user_id} className="glass-card">
                               <div className="p-6">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-4">
-                                    <div className="relative">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                  <div className="flex items-center gap-4 min-w-0 flex-1">
+                                    <div className="relative shrink-0">
                                       {getRankIcon(index + 1)}
                                       <Badge className="absolute -top-2 -right-2 text-xs" variant="secondary">
                                         #{index + 1}
                                       </Badge>
                                     </div>
                                     
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center shrink-0">
                                         <span className="text-white font-bold text-lg">
                                           {entry.username[0]?.toUpperCase()}
                                         </span>
                                       </div>
                                       
-                                      <div>
-                                        <h3 className="font-bold text-lg">{entry.username}</h3>
-                                        <div className="flex items-center gap-2">
+                                      <div className="min-w-0">
+                                        <h3 className="font-bold text-base sm:text-lg truncate">{entry.username}</h3>
+                                        <div className="flex flex-wrap items-center gap-2">
                                           <Badge variant="outline" className="text-xs">
                                             {entry.total_matches} matches
                                           </Badge>
@@ -225,8 +225,8 @@ const Leaderboards = () => {
                                     </div>
                                   </div>
                                   
-                                  <div className="text-right">
-                                    <div className="text-2xl font-bold text-success">
+                                  <div className="text-left sm:text-right w-full sm:w-auto">
+                                    <div className="text-xl sm:text-2xl font-bold text-success">
                                       ₦{entry.total_earnings.toLocaleString()}
                                     </div>
                                     <div className="text-sm text-foreground/70">Game Earnings</div>

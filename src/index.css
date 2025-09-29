@@ -465,6 +465,12 @@ All colors MUST be HSL.
       min-height: 320px;
     }
 
+    /* Allow leaderboard rows to grow to fit stacked mobile content */
+    .leaderboard-row {
+      height: auto;
+      min-height: 72px;
+    }
+
     /* Reduce animations on mobile for better performance */
     .content-transition {
       transition-duration: 0.2s;

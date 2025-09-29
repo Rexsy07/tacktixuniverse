@@ -154,13 +154,13 @@ const LeaderboardsSection = () => {
                           </div>
 
                           {/* Avatar & Info */}
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-3 min-w-0">
                             <Avatar className="h-12 w-12 border-2 border-primary/30">
                               <AvatarFallback className="bg-gradient-to-r from-primary to-accent text-primary-foreground font-bold">
                                 {player.username.substring(0, 2)}
                               </AvatarFallback>
                             </Avatar>
-                            <div>
+                            <div className="min-w-0">
                               <div className="font-semibold flex items-center space-x-2 min-w-0">
                                 <span className="truncate">{player.username}</span>
                                 {player.badge && (
@@ -169,7 +169,7 @@ const LeaderboardsSection = () => {
                                   </Badge>
                                 )}
                               </div>
-                              <div className="text-sm text-foreground/70">
+                              <div className="text-sm text-foreground/70 truncate">
                                 {player.matches} matches • {player.winRate}% win rate
                               </div>
                             </div>
