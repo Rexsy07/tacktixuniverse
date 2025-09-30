@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { safeAdminSetMatchWinner } from '@/utils/transactionSafeguards';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,14 +59,12 @@ const AdminWinnerSelector = ({ matchId, format, onWinnerSet }: AdminWinnerSelect
     try {
       setSettingWinner(true);
       
-      // Use the new admin function to set winner
-      const { data, error } = await supabase.rpc('admin_set_match_winner', {
-        p_match_id: matchId,
-        p_winner_user_id: winnerId,
-        p_admin_decision: `Admin selected winner: ${winnerName} for ${format} match`
-      });
-      
-      if (error) throw error;
+      // Use the safe admin function to prevent duplicate transactions
+      await safeAdminSetMatchWinner(
+        matchId,
+        winnerId,
+        `Admin selected winner: ${winnerName} for ${format} match`
+      );
       
       toast.success(`Winner set: ${winnerName}`);
       onWinnerSet?.();

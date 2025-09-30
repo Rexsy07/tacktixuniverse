@@ -82,6 +82,14 @@ const HeroSection = () => {
               <Trophy className="mr-2 h-5 w-5" />
               View Games
             </Button>
+            <Button
+              size="lg"
+              variant="secondary"
+              className="px-8 py-4 text-lg bg-yellow-400 text-black hover:bg-yellow-300 focus:ring-2 focus:ring-yellow-500"
+              onClick={() => navigate('/advertise')}
+            >
+              Advertise & Earn
+            </Button>
           </div>
 
           {/* Key Stats */}

@@ -9,10 +9,11 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Percent, Clock, Shield, Bell, Palette, Save, Upload } from "lucide-react";
+import { Settings, Percent, Clock, Shield, Bell, Palette, Save, Upload, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import AdminTransactionCleanup from "@/components/AdminTransactionCleanup";
 
 const AdminSettings = () => {
   const navigate = useNavigate();
@@ -114,9 +115,10 @@ const AdminSettings = () => {
           </div>
 
           <Tabs defaultValue="general" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="fees">Fees & Payouts</TabsTrigger>
+              <TabsTrigger value="cleanup">Transaction Cleanup</TabsTrigger>
               <TabsTrigger value="security">Security</TabsTrigger>
               <TabsTrigger value="notifications">Notifications</TabsTrigger>
               <TabsTrigger value="appearance">Appearance</TabsTrigger>
@@ -421,6 +423,21 @@ const AdminSettings = () => {
                     <Label htmlFor="notification-email">Notification Email Address</Label>
                     <Input id="notification-email" defaultValue="notifications@tacktixedge.com" />
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="cleanup" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <AlertTriangle className="h-5 w-5 mr-2" />
+                    Transaction Cleanup
+                  </CardTitle>
+                  <CardDescription>Find and remove duplicate transactions caused by system bugs</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AdminTransactionCleanup />
                 </CardContent>
               </Card>
             </TabsContent>

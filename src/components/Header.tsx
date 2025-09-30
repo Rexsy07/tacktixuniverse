@@ -164,7 +164,7 @@ const { maintenanceMode } = usePlatformSettings();
               </div>
             ) : (
               <div className="flex items-center space-x-4">
-                <Button variant="ghost" asChild className="hidden sm:inline-flex">
+                <Button variant="ghost" asChild className="inline-flex">
                   <Link to="/login">Login</Link>
                 </Button>
                 <Button asChild>

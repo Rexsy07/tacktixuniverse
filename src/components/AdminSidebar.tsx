@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { 
   Home, Users, Wallet, Gamepad2, Trophy, 
-  BarChart3, Bell, Settings, LogOut, Menu 
+  BarChart3, Bell, Settings, LogOut, Menu, Megaphone 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ const AdminSidebar = () => {
     { icon: Trophy, label: "Tournaments", href: "/admin/tournaments", count: 3 },
     { icon: BarChart3, label: "Analytics", href: "/admin/analytics", count: null },
     { icon: Bell, label: "Notifications", href: "/admin/notifications", count: null },
+    { icon: Megaphone, label: "Advertising", href: "/admin/advertise", count: null },
     { icon: Settings, label: "Settings", href: "/admin/settings", count: null },
   ];
 

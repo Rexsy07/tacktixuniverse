@@ -30,6 +30,7 @@ import AdminMatches from "./pages/AdminMatches";
 import AdminTournaments from "./pages/AdminTournaments";
 import AdminAnalytics from "./pages/AdminAnalytics";
 import AdminNotifications from "./pages/AdminNotifications";
+import AdminAdvertise from "./pages/AdminAdvertise";
 import AdminSettings from "./pages/AdminSettings";
 import Notifications from "./pages/Notifications";
 import AdminTournamentCreate from "./pages/AdminTournamentCreate";
@@ -38,6 +39,7 @@ import AdminTournamentManage from "./pages/AdminTournamentManage";
 import TournamentDetail from "./pages/TournamentDetail";
 import TournamentBracket from "./pages/TournamentBracket";
 import AdminWithdrawalDetail from "./pages/AdminWithdrawalDetail";
+import AdvertiseEarn from "./pages/AdvertiseEarn";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ResponsibleGaming from "./pages/ResponsibleGaming";
@@ -48,6 +50,11 @@ import DisputeResolution from "./pages/DisputeResolution";
 import CommunityGuidelines from "./pages/CommunityGuidelines";
 
 const queryClient = new QueryClient();
+
+import GlobalWinUI from "@/components/GlobalWinUI";
+import ConnectionStatus from "@/components/ConnectionStatus";
+import "@/utils/quickCleanup"; // Expose cleanup functions to console
+import "@/utils/systemWideFix"; // Expose system-wide fix functions to console
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -62,6 +69,9 @@ const App = () => (
             v7_relativeSplatPath: true
           }}
         >
+          {/* Global win popup + notifier mounted once for the whole app (inside Router for Link context) */}
+          <GlobalWinUI />
+          <ConnectionStatus />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/games" element={<Games />} />
@@ -88,6 +98,13 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/reset-password-confirm" element={<ResetPasswordConfirm />} />
+
+            {/* Advertise & Earn */}
+            <Route path="/advertise" element={
+              <ProtectedRoute>
+                <AdvertiseEarn />
+              </ProtectedRoute>
+            } />
             
             {/* User Routes */}
             <Route path="/profile" element={
@@ -180,6 +197,11 @@ const App = () => (
             <Route path="/admin/notifications" element={
               <ProtectedRoute requireAdmin>
                 <AdminNotifications />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/advertise" element={
+              <ProtectedRoute requireAdmin>
+                <AdminAdvertise />
               </ProtectedRoute>
             } />
             <Route path="/admin/settings" element={

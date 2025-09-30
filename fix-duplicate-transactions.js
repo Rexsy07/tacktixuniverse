@@ -1,0 +1,53 @@
+// Quick fix script for the duplicate transaction issue
+// Run this to clean up the specific match mentioned in the CSV data
+
+const matchId = '0b1e6380-70dd-455e-af73-19759daaa54f';
+
+console.log('=== Duplicate Transaction Fix Script ===');
+console.log('This script will help fix the duplicate transaction issue for match:', matchId);
+console.log('');
+console.log('🚨 IMPORTANT: Your database connection seems to be having issues.');
+console.log('You have multiple ways to fix this:');
+console.log('');
+console.log('METHOD 1: Using Browser Console (FASTEST)');
+console.log('1. Open your browser console (F12)');
+console.log('2. Type: await window.checkDuplicate()');
+console.log('3. If duplicates found, type: await window.quickCleanupDuplicate()');
+console.log('');
+console.log('METHOD 2: Using Admin Interface (when database is working)');
+console.log('1. Start your application and navigate to Admin Settings');
+console.log('2. Go to the "Transaction Cleanup" tab');
+console.log('3. Enter the match ID:', matchId);
+console.log('4. Click "Find Duplicates" to see the duplicate transactions');
+console.log('5. Click "Remove Duplicates" to clean them up');
+console.log('');
+console.log('Expected result:');
+console.log('- User 47540d0e-e76d-4411-be44-6ebd77bbec2f should have only ONE win transaction of ₦950');
+console.log('- The duplicate transaction should be removed');
+console.log('- Total payout should be ₦950 (not ₦1900)');
+console.log('');
+console.log('Alternatively, you can run the global cleanup to fix all duplicate transactions:');
+console.log('1. Go to Admin Settings > Transaction Cleanup tab');
+console.log('2. Click "Clean All Duplicates" button');
+console.log('3. Wait for the process to complete');
+console.log('');
+console.log('=== Database Connection Issues Detected ===');
+console.log('❌ Multiple ERR_NAME_NOT_RESOLVED and ERR_CONNECTION_CLOSED errors');
+console.log('❌ WebSocket connections failing');
+console.log('❌ admin_set_match_winner RPC function returning 400 error');
+console.log('');
+console.log('IMMEDIATE FIXES APPLIED:');
+console.log('✓ Added fallback mechanism for admin_set_match_winner');
+console.log('✓ Fixed React hook order warning in GlobalWinUI');
+console.log('✓ Added connection status indicator');
+console.log('✓ Console-accessible cleanup functions');
+console.log('');
+console.log('=== Prevention Measures Implemented ===');
+console.log('✓ Added safeAdminSetMatchWinner function to prevent new duplicates');
+console.log('✓ Updated AdminWinnerSelector to use safe function');
+console.log('✓ Added automatic duplicate detection and cleanup');
+console.log('✓ Created admin interface for transaction management');
+console.log('✓ Added fallback to settle_match_escrow when admin function fails');
+console.log('');
+console.log('The root cause is likely in the database function "admin_set_match_winner" or "settle_match_escrow"');
+console.log('which should be reviewed and fixed to prevent creating duplicate transactions.');
