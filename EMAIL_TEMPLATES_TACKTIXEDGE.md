@@ -265,7 +265,7 @@ These are the professional HTML email templates for TacktixEdge authentication s
 </html>
 ```
 
-## 6. Reauthentication Email Template
+## 6. Reauthentication Email Template (Spam-Filter Optimized)
 
 ```html
 <!DOCTYPE html>
@@ -273,7 +273,7 @@ These are the professional HTML email templates for TacktixEdge authentication s
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Verification - TacktixEdge</title>
+    <title>Account Verification Code - TacktixEdge</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
     
@@ -283,33 +283,37 @@ These are the professional HTML email templates for TacktixEdge authentication s
     </div>
 
     <div style="background: #f8f9fa; padding: 25px; border-radius: 8px; margin-bottom: 25px;">
-        <h2 style="color: #333; margin-top: 0;">🔐 Security Verification Required</h2>
+        <h2 style="color: #333; margin-top: 0;">Account Verification Code</h2>
         
-        <p>To ensure your account security, please enter the following 6-digit verification code when prompted:</p>
+        <p>Hello! You've requested access to a protected area of your TacktixEdge account. Please use the verification code below to proceed:</p>
         
         <div style="text-align: center; margin: 25px 0;">
             <div style="background: #fff; border: 2px solid #4f46e5; padding: 20px; border-radius: 8px; display: inline-block;">
-                <span style="font-family: 'Courier New', monospace; font-size: 32px; font-weight: bold; color: #4f46e5; letter-spacing: 8px;">{{ .Token }}</span>
+                <span style="font-family: 'Courier New', monospace; font-size: 32px; font-weight: bold; color: #4f46e5; letter-spacing: 6px;">{{ .Token }}</span>
             </div>
         </div>
         
         <p style="font-size: 14px; color: #666; text-align: center;">
-            Enter this code to continue with your secure operation
+            Copy this code into the verification form on TacktixEdge
         </p>
         
-        <div style="background: #fef3c7; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+        <div style="background: #e0f2fe; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #0369a1;">
             <p style="margin: 0; font-size: 14px;">
-                <strong>⚠️ Security Note:</strong> This code will expire in 10 minutes. 
-                Do not share this code with anyone.
+                <strong>Important:</strong> This verification code is valid for 10 minutes only. Keep this code private and never share it with others.
             </p>
         </div>
+
+        <p style="font-size: 13px; color: #888; margin-top: 20px;">
+            Having trouble? Visit our help center or contact our support team through your TacktixEdge account dashboard.
+        </p>
     </div>
 
     <div style="border-top: 1px solid #eee; padding-top: 20px; font-size: 14px; color: #666;">
-        <p>Best regards,<br>The TacktixEdge Team</p>
-        <p style="font-size: 12px;">
-            This security code was generated because you initiated a sensitive operation on your TacktixEdge account. 
-            If you did not request this, please contact support immediately.
+        <p>Thank you for using TacktixEdge!</p>
+        <p style="margin-top: 10px;">The TacktixEdge Support Team</p>
+        <p style="font-size: 12px; color: #999; margin-top: 15px;">
+            This message was sent to you because you are registered with TacktixEdge. 
+            This verification code was requested from your account dashboard.
         </p>
     </div>
 
