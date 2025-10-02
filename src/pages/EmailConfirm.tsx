@@ -50,7 +50,7 @@ const EmailConfirm = () => {
           setConfirmationStatus('success');
           toast({
             title: "Email Confirmed!",
-            description: "Your account has been successfully verified. Welcome to TackTix Arena!",
+            description: "Your account has been successfully verified. Welcome to TacktixEdge!",
             variant: "default"
           });
 
@@ -93,7 +93,7 @@ const EmailConfirm = () => {
                 </span>
               </h1>
               <p className="text-foreground/70">
-                Verifying your TackTix Arena account
+                Verifying your TacktixEdge account
               </p>
             </div>
 
@@ -118,7 +118,7 @@ const EmailConfirm = () => {
                     </div>
                     <h3 className="text-lg font-semibold">Email Confirmed Successfully!</h3>
                     <p className="text-foreground/70 leading-relaxed">
-                      Welcome to TackTix Arena! Your account has been verified and you're now ready to start gaming.
+                      Welcome to TacktixEdge! Your account has been verified and you're now ready to start gaming.
                     </p>
                     <p className="text-sm text-foreground/60">
                       You will be redirected to your profile in a few seconds...

@@ -50,7 +50,7 @@ const MagicLink = () => {
           setAuthStatus('success');
           toast({
             title: "Login Successful!",
-            description: "Welcome back to TackTix Arena! You've been logged in via magic link.",
+            description: "Welcome back to TacktixEdge! You've been logged in via magic link.",
             variant: "default"
           });
 
@@ -93,7 +93,7 @@ const MagicLink = () => {
                 </span>
               </h1>
               <p className="text-foreground/70">
-                Authenticating your TackTix Arena account
+                Authenticating your TacktixEdge account
               </p>
             </div>
 
@@ -118,7 +118,7 @@ const MagicLink = () => {
                     </div>
                     <h3 className="text-lg font-semibold">Login Successful!</h3>
                     <p className="text-foreground/70 leading-relaxed">
-                      Welcome back to TackTix Arena! You've been successfully logged in.
+                      Welcome back to TacktixEdge! You've been successfully logged in.
                     </p>
                     <p className="text-sm text-foreground/60">
                       You will be redirected to your profile in a moment...

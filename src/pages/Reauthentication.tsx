@@ -128,7 +128,7 @@ const Reauthentication = () => {
                 </span>
               </h1>
               <p className="text-foreground/70">
-                Enter the verification code sent to your email
+                Secure your TacktixEdge account
               </p>
             </div>
 
