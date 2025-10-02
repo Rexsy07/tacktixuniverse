@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff, Mail, Lock, Gamepad2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Gamepad2, AlertCircle, Zap } from "lucide-react";
 import { Header } from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,7 +26,7 @@ const Login = () => {
     general: ""
   });
 
-  const { signIn, user } = useAuth();
+  const { signIn, signInWithMagicLink, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -93,6 +93,39 @@ const Login = () => {
       });
     } else {
       navigate('/profile');
+    }
+    
+    setLoading(false);
+  };
+
+  const handleMagicLink = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    if (!formData.email) {
+      setErrors(prev => ({ ...prev, email: "Email is required for magic link" }));
+      toast({
+        title: "Error",
+        description: "Please enter your email address",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      setErrors(prev => ({ ...prev, email: "Please enter a valid email address" }));
+      return;
+    }
+    
+    setLoading(true);
+    
+    const { error } = await signInWithMagicLink(formData.email);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send magic link. Please try again.",
+        variant: "destructive"
+      });
     }
     
     setLoading(false);
@@ -216,6 +249,30 @@ const Login = () => {
                     {loading ? 'Signing in...' : 'Sign In'}
                   </Button>
                 </form>
+
+                {/* Or Divider */}
+                <div className="mt-6 mb-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Magic Link Button */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full mb-6"
+                  onClick={handleMagicLink}
+                  disabled={loading}
+                >
+                  <Zap className="mr-2 h-4 w-4" />
+                  {loading ? 'Sending...' : 'Send Magic Link'}
+                </Button>
 
                 <div className="mt-6 text-center">
                   <p className="text-foreground/70">

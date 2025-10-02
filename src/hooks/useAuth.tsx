@@ -9,6 +9,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, username: string, fullName: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithMagicLink: (email: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
 }
@@ -149,8 +150,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [user?.id, isAdmin]);
 
+  // Helper function to get the correct base URL
+  const getBaseUrl = () => {
+    const isProd = window.location.hostname === 'rexsy07.github.io';
+    return isProd 
+      ? 'https://Rexsy07.github.io/tacktixuniverse'
+      : window.location.origin;
+  };
+
   const signUp = async (email: string, password: string, username: string, fullName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = `${getBaseUrl()}/auth/confirm`;
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -188,6 +197,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  const signInWithMagicLink = async (email: string) => {
+    const redirectUrl = `${getBaseUrl()}/auth/magic-link`;
+    
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: redirectUrl,
+      }
+    });
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Check your email for a magic link!');
+    }
+
+    return { error };
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (!error) {
@@ -201,6 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     signUp,
     signIn,
+    signInWithMagicLink,
     signOut,
     isAdmin
   };

@@ -17,6 +17,9 @@ import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import ResetPasswordConfirm from "./pages/ResetPasswordConfirm";
+import EmailConfirm from "./pages/EmailConfirm";
+import MagicLink from "./pages/MagicLink";
+import Reauthentication from "./pages/Reauthentication";
 import DashboardWallet from "./pages/DashboardWallet";
 import DashboardMatches from "./pages/DashboardMatches";
 import CreateChallenge from "./pages/CreateChallenge";
@@ -112,6 +115,9 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/reset-password-confirm" element={<ResetPasswordConfirm />} />
+            <Route path="/auth/confirm" element={<EmailConfirm />} />
+            <Route path="/auth/magic-link" element={<MagicLink />} />
+            <Route path="/auth/reauthenticate" element={<Reauthentication />} />
 
             {/* Advertise & Earn */}
             <Route path="/advertise" element={

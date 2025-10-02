@@ -33,8 +33,14 @@ const ResetPassword = () => {
     setLoading(true);
     
     try {
+      // Use production URL when deployed, otherwise use current origin
+      const isProd = window.location.hostname === 'rexsy07.github.io';
+      const baseUrl = isProd 
+        ? 'https://Rexsy07.github.io/tacktixuniverse'
+        : window.location.origin;
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + "/reset-password-confirm",
+        redirectTo: baseUrl + "/reset-password-confirm",
       });
       
       if (error) {
