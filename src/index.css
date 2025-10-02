@@ -96,6 +96,7 @@ All colors MUST be HSL.
     background-image: 
       radial-gradient(circle at 20% 80%, hsl(213 94% 68% / 0.1) 0%, transparent 50%),
       radial-gradient(circle at 80% 20%, hsl(283 89% 74% / 0.1) 0%, transparent 50%);
+    padding-top: 4rem; /* 64px - matches header height */
   }
 
   /* Glassmorphism Base Classes */
@@ -430,6 +431,28 @@ All colors MUST be HSL.
     100% {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  /* Page layout utilities */
+  .page-with-header {
+    min-height: calc(100vh - 4rem); /* Subtract header height */
+    padding-top: 0; /* Override body padding for specific pages if needed */
+  }
+
+  .page-content {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+
+  /* Ensure admin pages account for both header and sidebar */
+  .admin-page-content {
+    margin-left: 0;
+  }
+
+  @media (min-width: 1024px) {
+    .admin-page-content {
+      margin-left: 16rem; /* 256px - matches sidebar width */
     }
   }
 

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { 
   Home, Users, Wallet, Gamepad2, Trophy, 
-  BarChart3, Bell, Settings, LogOut, Menu, Megaphone 
+  BarChart3, Bell, Settings, LogOut, Menu, Megaphone, DollarSign,
+  BookOpen, Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,9 +19,12 @@ const AdminSidebar = () => {
     { icon: Wallet, label: "Wallet", href: "/admin/wallet", count: 15 },
     { icon: Gamepad2, label: "Matches", href: "/admin/matches", count: 8 },
     { icon: Trophy, label: "Tournaments", href: "/admin/tournaments", count: 3 },
+    { icon: BookOpen, label: "Blog", href: "/admin/blog", count: null },
+    { icon: Star, label: "Creators", href: "/admin/creators", count: null },
     { icon: BarChart3, label: "Analytics", href: "/admin/analytics", count: null },
     { icon: Bell, label: "Notifications", href: "/admin/notifications", count: null },
     { icon: Megaphone, label: "Advertising", href: "/admin/advertise", count: null },
+    { icon: DollarSign, label: "Payouts", href: "/admin/payouts", count: null },
     { icon: Settings, label: "Settings", href: "/admin/settings", count: null },
   ];
 

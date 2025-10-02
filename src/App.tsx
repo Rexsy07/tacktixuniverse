@@ -31,6 +31,7 @@ import AdminTournaments from "./pages/AdminTournaments";
 import AdminAnalytics from "./pages/AdminAnalytics";
 import AdminNotifications from "./pages/AdminNotifications";
 import AdminAdvertise from "./pages/AdminAdvertise";
+import AdminPayouts from "./pages/AdminPayouts";
 import AdminSettings from "./pages/AdminSettings";
 import Notifications from "./pages/Notifications";
 import AdminTournamentCreate from "./pages/AdminTournamentCreate";
@@ -40,6 +41,7 @@ import TournamentDetail from "./pages/TournamentDetail";
 import TournamentBracket from "./pages/TournamentBracket";
 import AdminWithdrawalDetail from "./pages/AdminWithdrawalDetail";
 import AdvertiseEarn from "./pages/AdvertiseEarn";
+import AdvertisePayments from "./pages/AdvertisePayments";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ResponsibleGaming from "./pages/ResponsibleGaming";
@@ -48,6 +50,11 @@ import SupportFAQ from "./pages/SupportFAQ";
 import SupportContact from "./pages/SupportContact";
 import DisputeResolution from "./pages/DisputeResolution";
 import CommunityGuidelines from "./pages/CommunityGuidelines";
+import Blog from "./pages/Blog";
+import BlogPostDetail from "./pages/BlogPostDetail";
+import CreatorsOfTheWeek from "./pages/CreatorsOfTheWeek";
+import AdminBlogManager from "./pages/AdminBlogManager";
+import AdminCreatorsManager from "./pages/AdminCreatorsManager";
 
 const queryClient = new QueryClient();
 
@@ -94,6 +101,13 @@ const App = () => (
             <Route path="/legal/privacy" element={<PrivacyPolicy />} />
             <Route path="/legal/responsible" element={<ResponsibleGaming />} />
             <Route path="/legal/kyc" element={<KYCPolicy />} />
+            
+            {/* Blog & Creators Routes */}
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogPostDetail />} />
+            <Route path="/creators" element={<CreatorsOfTheWeek />} />
+            <Route path="/creators-of-the-week" element={<CreatorsOfTheWeek />} />
+            
             <Route path="/signup" element={<SignUp />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
@@ -103,6 +117,16 @@ const App = () => (
             <Route path="/advertise" element={
               <ProtectedRoute>
                 <AdvertiseEarn />
+              </ProtectedRoute>
+            } />
+            <Route path="/advertise-earn" element={
+              <ProtectedRoute>
+                <AdvertiseEarn />
+              </ProtectedRoute>
+            } />
+            <Route path="/advertise-payments" element={
+              <ProtectedRoute>
+                <AdvertisePayments />
               </ProtectedRoute>
             } />
             
@@ -204,9 +228,24 @@ const App = () => (
                 <AdminAdvertise />
               </ProtectedRoute>
             } />
+            <Route path="/admin/payouts" element={
+              <ProtectedRoute requireAdmin>
+                <AdminPayouts />
+              </ProtectedRoute>
+            } />
             <Route path="/admin/settings" element={
               <ProtectedRoute requireAdmin>
                 <AdminSettings />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/blog" element={
+              <ProtectedRoute requireAdmin>
+                <AdminBlogManager />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/creators" element={
+              <ProtectedRoute requireAdmin>
+                <AdminCreatorsManager />
               </ProtectedRoute>
             } />
             

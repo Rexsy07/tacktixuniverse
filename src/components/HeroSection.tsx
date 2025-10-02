@@ -86,7 +86,7 @@ const HeroSection = () => {
               size="lg"
               variant="secondary"
               className="px-8 py-4 text-lg bg-yellow-400 text-black hover:bg-yellow-300 focus:ring-2 focus:ring-yellow-500"
-              onClick={() => navigate('/advertise')}
+              onClick={() => navigate('/advertise-earn')}
             >
               Advertise & Earn
             </Button>

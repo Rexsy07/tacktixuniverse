@@ -39,6 +39,8 @@ export function Header() {
     { name: 'Games', href: '/games' },
     { name: 'Tournaments', href: '/tournaments' },
     { name: 'Leaderboards', href: '/leaderboards' },
+    { name: 'Blog', href: '/blog' },
+    { name: 'Creators', href: '/creators' },
     { name: 'How It Works', href: '/how-it-works' },
     { name: 'Support', href: '/support' },
   ];
@@ -140,6 +142,12 @@ const { maintenanceMode } = usePlatformSettings();
                         My Matches
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/advertise-payments" className="flex items-center">
+                        <Gamepad2 className="mr-2 h-4 w-4" />
+                        Ad Payments
+                      </Link>
+                    </DropdownMenuItem>
                     {isAdmin && (
                       <DropdownMenuItem asChild>
                         <Link to="/admin" className="flex items-center">
@@ -199,6 +207,9 @@ const { maintenanceMode } = usePlatformSettings();
                 </Link>
                 <Link to="/matches" className="block px-3 py-2 text-base font-medium hover:bg-accent hover:text-accent-foreground">
                   My Matches
+                </Link>
+                <Link to="/advertise-payments" className="block px-3 py-2 text-base font-medium hover:bg-accent hover:text-accent-foreground">
+                  Ad Payments
                 </Link>
                 {isAdmin && (
                   <Link to="/admin" className="block px-3 py-2 text-base font-medium hover:bg-accent hover:text-accent-foreground">
